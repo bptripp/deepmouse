@@ -30,16 +30,15 @@ class FlatMap:
             return distances - radius
 
         res_lsq = least_squares(fun, [50, 50, 50, 50])
-        centre = res_lsq.x[:3]
-        radius = res_lsq.x[3]
-        self.centre = centre
+        self.centre = res_lsq.x[:3]
+        self.radius = res_lsq.x[3]
 
         n = self.positions_3d.shape[1]
         self.positions_2d = np.zeros((2, n))
         for i in range(n):
             self.positions_2d[:,i] = self.get_position_2d(self.positions_3d[:,i])
 
-        return centre, radius
+        return self.centre, self.radius
 
     def _plot_residuals(self):
         offsets = self.positions_3d.T - centre
@@ -59,8 +58,8 @@ class FlatMap:
         offset = position_3d.T - self.centre
 
         result = np.zeros(2)
-        result[1] = np.arctan2(-offset[0], -offset[1])
-        result[0] = np.arctan(offset[2]/np.linalg.norm(offset[:2]))
+        result[1] = self.voxel_size * self.radius * np.arctan2(-offset[0], -offset[1])
+        result[0] = self.voxel_size * self.radius * np.arctan(offset[2]/np.linalg.norm(offset[:2]))
         return result
 
     def _plot_voxels(self):

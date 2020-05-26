@@ -104,36 +104,34 @@ def flatmap_weights(indices, weights):
         plt.scatter(position2d[0], position2d[1], c=color)
     plt.xticks([]), plt.yticks([])
 
-print('voxel retinotopy')
+# vr = VoxelRetinotopy()
 
-vr = VoxelRetinotopy()
-
-#TODO: a few of these are nan
-def visual_space_weights(indices, weights):
-    rel_weights = weights / max(weights)
-    coords = []
-    weighted_sum = np.zeros(2, dtype=float)
-    w = []
-    for i in range(len(indices)):
-        c = vr.get_retinal_coords(pre_positions[i])
-        if c is None or np.isnan(c[0]) or np.isnan(c[1]):
-            print('position unknown')
-        else:
-            if rel_weights[i] > .05: # avoid pulling toward centre of V1 due to diffuse weight
-                coords.append(c)
-                weighted_sum = weighted_sum + np.array(c) * rel_weights[i]
-                w.append(rel_weights[i])
-    centroid = weighted_sum / sum(w)
-    for i in range(len(coords)):
-        # position2d = flatmap.get_position_2d(pre_positions[i])
-        color = [w[i], 0, 1-w[i], .5]
-        # if coords is None:
-        #     print('position unknown')
-        # else:
-        plt.scatter(coords[i][0]-centroid[0], coords[i][1]-centroid[1], c=color)
-    plt.xlim((-60, 60))
-    plt.ylim((-40, 40))
-    plt.xticks([]), plt.yticks([])
+# #TODO: a few of these are nan
+# def visual_space_weights(indices, weights):
+#     rel_weights = weights / max(weights)
+#     coords = []
+#     weighted_sum = np.zeros(2, dtype=float)
+#     w = []
+#     for i in range(len(indices)):
+#         c = vr.get_retinal_coords(pre_positions[i])
+#         if c is None or np.isnan(c[0]) or np.isnan(c[1]):
+#             print('position unknown')
+#         else:
+#             if rel_weights[i] > .05: # avoid pulling toward centre of V1 due to diffuse weight
+#                 coords.append(c)
+#                 weighted_sum = weighted_sum + np.array(c) * rel_weights[i]
+#                 w.append(rel_weights[i])
+#     centroid = weighted_sum / sum(w)
+#     for i in range(len(coords)):
+#         # position2d = flatmap.get_position_2d(pre_positions[i])
+#         color = [w[i], 0, 1-w[i], .5]
+#         # if coords is None:
+#         #     print('position unknown')
+#         # else:
+#         plt.scatter(coords[i][0]-centroid[0], coords[i][1]-centroid[1], c=color)
+#     plt.xlim((-60, 60))
+#     plt.ylim((-40, 40))
+#     plt.xticks([]), plt.yticks([])
 
 # plt.imshow(weights[pre_indices,:])
 # plt.plot(nodes[:,post_indices[31]])
@@ -146,8 +144,8 @@ for i in range(len(post_indices)):
     pi = post_indices[i]
     input_weights = np.dot(weights[pre_indices,:], nodes[:,pi])
     plt.subplot(7,7,i+1)
-    # flatmap_weights(pre_indices, input_weights)
-    visual_space_weights(pre_indices, input_weights)
+    flatmap_weights(pre_indices, input_weights)
+    # visual_space_weights(pre_indices, input_weights)
 plt.show()
 # print(input_weights.shape)
 # print(pre_indices)
