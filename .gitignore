@@ -1,3 +1,14 @@
+deepmouse/connectivity
+deepmouse/mouse_connectivity
+deepmouse/maps/connectivity
+deepmouse/maps/mouse_connectivity
+deepmouse/test/connectivity
+deepmouse/test/mouse_connectivity
+deepmouse/reference_model
+
+*.pkl
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
