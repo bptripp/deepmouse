@@ -2,7 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from deepmouse.streamlines import laplace_solution
+from deepmouse.streamlines import laplace_solution, get_interpolator, get_gradient
 
 # voxel volume with integer spacing, convex and concave parts
 
@@ -66,20 +66,44 @@ on_top_edge = on_top_edge[ind]
 
 positions = np.concatenate((x[:,np.newaxis], y[:,np.newaxis], z[:,np.newaxis]), axis=1)
 
-x = laplace_solution(positions, on_top_edge, on_bottom_edge)
-# print(x)
+depths = laplace_solution(positions, on_top_edge, on_bottom_edge)
 
-# plot slice y=0
-slice = []
-for i in range(positions.shape[0]):
-    if positions[i,1] == 0:
-        slice.append([positions[i,0], positions[i,2], x[i]])
 
-slice = np.array(slice)
-fig = plt.figure(figsize=(12, 6))
-ax = fig.add_subplot(111, projection='3d')
-ax.plot_trisurf(slice[:,0], slice[:,1], slice[:,2],
-                cmap='viridis', edgecolor='none')
-plt.plot(slice[:,0], slice[:,1], slice[:,2], 'ko')
+def show_slice(positions, depths):
+    slice = []
+    for i in range(positions.shape[0]):
+        if positions[i,1] == 0:
+            slice.append([positions[i,0], positions[i,2], depths[i]])
 
-plt.show()
+    slice = np.array(slice)
+    fig = plt.figure(figsize=(12, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_trisurf(slice[:,0], slice[:,1], slice[:,2],
+                    cmap='viridis', edgecolor='none')
+    plt.plot(slice[:,0], slice[:,1], slice[:,2], 'ko')
+    plt.show()
+
+
+show_slice(positions, depths)
+
+# test interpolation ...
+print(type(positions))
+print(positions.shape)
+# print(depths)
+interpolator = get_interpolator(positions, depths)
+print(get_gradient(interpolator, [5, 0, 10]))
+
+# fine_size = 40
+# fx = np.linspace(0, size, fine_size+1).astype(int)
+# fy = np.linspace(0, 1, 2).astype(int)
+# fz = np.linspace(0, size, fine_size+1).astype(int)
+# FX, FY, FZ = np.meshgrid(fx, fy, fz)
+# fx = FX.flatten()
+# fy = FY.flatten()
+# fz = FZ.flatten()
+#
+# fdepths = interpolator(fx, fy, fz)
+# print('done interpolation')
+# fpositions = np.concatenate((fx[:,np.newaxis], fy[:,np.newaxis], fz[:,np.newaxis]), axis=1)
+# show_slice(fpositions, fdepths)
+
