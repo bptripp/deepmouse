@@ -7,7 +7,7 @@ from deepmouse.binzegger import Binzegger04
 """
 Mouse connectivity data. Major sources include:
 
-Erö, C., Gewaltig, M. O., Keller, D., & Markram, H. (2019). A Cell Atlas for the Mouse Brain.
+Ero, C., Gewaltig, M. O., Keller, D., & Markram, H. (2019). A Cell Atlas for the Mouse Brain.
 Frontiers in Neuroinformatics, 13, 7.
 
 Thomson, A. M., & Lamy, C. (2007). Functional maps of neocortical local circuitry.
@@ -110,8 +110,8 @@ class ThomsonLamy07:
     Data on "hit rates" of various interlaminar connections, i.e. fraction of
     tested pairs of neurons that had a functional connection, reviewed in:
 
-    ﻿[1] A. M. Thomson and C. Lamy, “Functional maps of neocortical local circuitry,”
-    Front. Neurosci., vol. 1, no. 1, pp. 19–42, 2007.
+    [1] Thomson and Lamy, Functional maps of neocortical local circuitry,
+    Front. Neurosci., vol. 1, no. 1, pp. 19 42, 2007.
 
     Hit rates and # pairs are from their Table 1. Where available we take adult rat data,
     and ignore e.g. juvenile rat or cat data.
@@ -199,8 +199,8 @@ class Zarrinpar06:
     """
     Data on input laminar input to L6 via photostimulation, from:
 
-    ﻿A. Zarrinpar and E. M. Callaway, “Local Connections to Specific Types of Layer 6 Neurons in
-    the Rat Visual Cortex,” J Neurophysiol., vol. 95, pp. 1751–1761, 2006.
+    Zarrinpar and Callaway, "Local connections to specific types of Layer 6 neurons in
+    the rat visual cortex" J Neurophysiol 95, pp.1751-1761, 2006.
     """
 
     def __init__(self):
@@ -232,8 +232,8 @@ class Zarrinpar16:
     """
     Data on input laminar input to L5 via photostimulation, from:
 
-    ﻿A. Zarrinpar and E. M. Callaway, “Functional Local Input to Layer 5 Pyramidal Neurons in
-    the Rat Visual Cortex,” Cereb. Cortex, vol. 26, pp. 991–1003, 2016.
+    Zarrinpar and Callaway, "Local connections to specific types of Layer 6 neurons in
+    the rat visual cortex" J Neurophysiol 95, pp.1751-1761, 2006.
     """
 
     def __init__(self):
@@ -268,8 +268,8 @@ class Perin11:
     and non-reciprocal, but it isn't. It doesn't look like this much affects the spatial
     profile though, just the peak (which we don't use).
 
-    [1] R. Perin, T. K. Berger, and H. Markram, “A synaptic organizing principle for cortical neuronal
-    groups.,” Proc. Natl. Acad. Sci. U. S. A., vol. 108, no. 13, pp. 5419–24, Mar. 2011.
+    [1] Perin, Berger, and Markram, "A synaptic organizing principle for cortical neuronal
+    groups", PNAS 109(13). pp. 5419-24, 2011.
     """
 
     def __init__(self):
