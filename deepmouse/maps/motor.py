@@ -41,15 +41,28 @@ class VoxelMotorRepresentation:
         :return: vector with strength of representation of different body parts,
             specifically MotorMap.parts.keys()
         """
-        # To account for cortical curvature, we first find the closest L5 voxel,
-        # and then look up the motor representation for the horizontal location
-        # of the L5 voxel. This should give entire columns the same motor
-        # representation.
+
+        """
+        To account for cortical curvature, we first find the closest L5 voxel, and then 
+        look up the motor representation for the horizontal location of the L5 voxel. 
+        This should give entire columns the same motor representation.
+
+        Note in this atlas: http://www.mbl.org/atlas170/atlas170_frame.html
+        - the first section (front of olfactory bulb) is 4.74mm anterior to bregma (2nd 4.64)
+        - last section is bregma - 7.70mm (2nd last -7.48)
+        - distance between these is 4.64+7.70 = 12.34mm
+        - bregma is 37.6% back 
+
+        Voxel spacing is 100 microns, so total Allen AP dimension is 131-3=128=voxels=12.8mm.
+        Matching with other atlas, bregma is at voxel 3+128*.376=51.128. Result (with rounding): 
+        bregma is at voxel 51 (AP), 56.5 (ML)
+        """
+
         offsets = voxel_position - self._layer_5_positions
         distances = np.linalg.norm(offsets, axis=1)
         index = np.argmin(distances)
         layer_5_position = self._layer_5_positions[index,:] # back, down, lateral
-        lateral_from_bregma_mm = - (layer_5_position[2] - 56.5) / 10 # negative because paper reports left hemisphere and we have right
+        lateral_from_bregma_mm = - (layer_5_position[2] - 56.5) / 10 # -ve because paper reports left hemisphere and we have right
         posterior_from_bregma_mm = (layer_5_position[0] - 51) / 10
         # print('position: ({},{})'.format(posterior_from_bregma_mm, lateral_from_bregma_mm))
         return self.aggregate.map_point((posterior_from_bregma_mm, lateral_from_bregma_mm))
