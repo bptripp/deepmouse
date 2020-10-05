@@ -316,26 +316,81 @@ def get_gradient(interpolator, position):
     gy = (interpolator(px, py + d, pz) - interpolator(px, py - d, pz)) / (2*d)
     gz = (interpolator(px, py, pz + d) - interpolator(px, py, pz - d)) / (2*d)
 
-    return [gx, gy, gz]
+    return np.array([gx, gy, gz])
 
 
-def get_streamline(interpolator, origin):
+def get_streamline(interpolator, origin, step_size=0.1):
     """
     TODO: need surface? edges outside cortex?
-    gradient descent to zero in steps of say 1/2 voxel
+    Gradient descent to outside of cortex.
     """
     p = origin
     depth = interpolator(p[0], p[1], p[2])
 
+    if not depth:
+        print(depth)
+        print(origin)
+
     streamline = [p]
-    while depth > 0:
+    c = 0
+    while depth > 0.25: # unstable at the very edge
+        c = c + 1
+        if c > 500:
+            print('stuck')
+            print(streamline)
+            break
         g = get_gradient(interpolator, p)
-        step = - 0.5 * g / np.linalg.norm(g)
+        step = - step_size * g / np.linalg.norm(g)
         p = p + step
         streamline.append(p)
         depth = interpolator(p[0], p[1], p[2])
 
-    return streamline
+    return np.array(streamline)
+
+
+def get_slice_indices(positions, low_x, high_x):
+    result = []
+    for i, p in enumerate(positions):
+        if low_x < p[0] < high_x:
+            result.append(i)
+    return result
+
+
+def get_closest_voxel(position, edge_positions):
+    differences = position - edge_positions
+    distances = np.linalg.norm(differences, axis=1)
+    result = edge_positions[np.argmin(distances),:]
+    return result
+
+
+class CompositeInterpolator:
+    """
+    Wrapper for multiple interpolators for different slices of the voxel space. We need
+    this because it's too slow and memory intensive to build one large interpolator.
+    """
+    def __init__(self, positions, depths):
+        n = 10 # number of slices
+        buffer = 2
+        self.boundaries = np.linspace(min(positions[:, 0]), max(positions[:, 0]), n+1)
+        self.intervals = np.array([self.boundaries[i:i+2] for i in range(n)])
+        self.intervals[:,0] = self.intervals[:,0] - buffer # extend each slice to reduce edge effects
+        self.intervals[:,1] = self.intervals[:,1] + buffer
+        print(self.intervals)
+        self.interpolators = []
+        for i in range(n):
+            print('Setting up slice {} of {}'.format(i, n))
+            subset = get_slice_indices(positions, self.intervals[i,0], self.intervals[i,1])
+            interpolator = get_interpolator(positions[subset, :], depths[subset])
+            self.interpolators.append(interpolator)
+
+    def __call__(self, *args, **kwargs):
+        x = args[0]
+        for i in range(len(self.boundaries)-1):
+            if self.boundaries[i] <= x <= self.boundaries[i+1]: # have to include both edges
+                # print('using ' + str(i))
+                return self.interpolators[i](*args, **kwargs)
+
+        print('x = {} outside boundaries {}'.format(x, self.boundaries))
 
 
 if __name__ == '__main__':
@@ -353,7 +408,7 @@ if __name__ == '__main__':
     # save_positions_per_layer()
 
     # save_inner_and_outer_edges()
-    # edges = load_inner_and_outer_edges()
+    edges = load_inner_and_outer_edges()
     # print(edges)
     #
     # inner_edge = edges['inner']
@@ -379,6 +434,8 @@ if __name__ == '__main__':
         positions['6b'],
     ))
 
+    print(positions_all.shape)
+
     # depths = laplace_solution(positions_all, flags['is_outer'], flags['is_inner'])
     # with open('depths.pkl', 'wb') as file:
     #     pickle.dump(depths, file)
@@ -392,13 +449,13 @@ if __name__ == '__main__':
     colors[:,0] = depths/7
     colors[:,2] = 1-depths/7
 
+    # plt.hist(depths.flatten(), 100)
+    # plt.show()
+
     # subset = np.random.randint(0, len(depths), 5000)
 
     # for x in range(min(positions_all[:,0]), max(positions_all[:,0]), 5):
-    #     subset = []
-    #     for i, p in enumerate(positions_all):
-    #         if x < p[0] < x+5:
-    #             subset.append(i)
+    #     subset = get_slice_indices(positions_all, x, x+5)
     #
     #     fig = plt.figure(figsize=(9, 7))
     #     ax = fig.add_subplot(111, projection='3d')
@@ -407,11 +464,76 @@ if __name__ == '__main__':
     #     plt.ylabel('y')
     #     plt.show()
 
+    # ci = CompositeInterpolator(positions_all, depths)
+    # with open('interpolator.pkl', 'wb') as file:
+    #     pickle.dump(ci, file)
 
-    interpolator = get_interpolator(positions_all, depths)
+    with open('interpolator.pkl', 'rb') as file:
+        ci = pickle.load(file)
 
-    with open('interpolator.pkl', 'wb') as file:
-        pickle.dump(interpolator, file)
+    # print(ci(24, 35, 76))
+    # print(ci(69, 10, 61))
+    # print(get_streamline(ci, [69, 10, 61]))
+
+
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection='3d')
+    for i in range(500):
+        if i % 50 == 0:
+            print('Finding streamline {} of 500'.format(i))
+        origin = positions_all[np.random.randint(0, positions_all.shape[0]),:]
+        streamline = get_streamline(ci, origin)
+        ax.scatter(streamline[0,0], streamline[0,1], streamline[0,2], 'ko')
+        ax.plot(streamline[:,0], streamline[:,1], streamline[:,2], 'k-')
+
+        foo = get_closest_voxel(streamline[-1,:], edges['outer'])
+        ax.scatter(foo[0], foo[1], foo[2], 'ko')
+        # eo = edges['outer']
+        # ax.scatter(eo[:, 0], eo[:, 1], eo[:, 2])
+        ax.plot(streamline[:,0], streamline[:,1], streamline[:,2], 'k-')
+
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.show()
+
+
+    # min_x = min(positions_all[:,0])
+    # max_x = max(positions_all[:,0])
+    # print('x range {} to {}'.format(min_x, max_x))
+    #
+    # subset1 = get_slice_indices(positions_all, 19, 25)
+    # print('subset size {} of {}'.format(len(subset1), len(depths)))
+    # interpolator1 = get_interpolator(positions_all[subset1, :], depths[subset1])
+    # print(interpolator1(24, 35, 76))
+    #
+    # subset2 = get_slice_indices(positions_all, 70, 103)
+    # print('subset size {} of {}'.format(len(subset2), len(depths)))
+    # interpolator2 = get_interpolator(positions_all[subset2, :], depths[subset2])
+    #
+    # test_origin = [24, 35, 76]
+    # streamline1 = get_streamline(interpolator1, test_origin, step_size=.2)
+    # streamline2 = get_streamline(interpolator2, test_origin, step_size=.1)
+    #
+    # fig = plt.figure(figsize=(9, 7))
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.scatter(positions_all[subset2,0], positions_all[subset2,1], positions_all[subset2,2], c=colors[subset2])
+    # ax.plot(streamline1[:,0], streamline1[:,1], streamline1[:,2], 'ko-')
+    # ax.plot(streamline2[:,0], streamline2[:,1], streamline2[:,2], 'ro-')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # plt.show()
+
+    # 80, 10, 80 might be a good pivot point for mesh, or 80, 12, 80
+
+    #from testing, need to stay a couple of voxels from edge of volume, .1 voxel steps ok
+    #TODO: streamlines from random positions
+    #TODO: find outer surface point for each voxel
+    #TODO: flatmap
+
+
+
+    # with open('interpolator.pkl', 'wb') as file:
+    #     pickle.dump(interpolator, file)
 
 
     # plt.hist(depths, bins=100)
