@@ -3,6 +3,11 @@ Data from Garrett et al. on V1 retinotopy, from their figure.
 
 M. E. Garrett, I. Nauhaus, J. H. Marshel, and E. M. Callaway, “Topography and areal
 organization of mouse visual cortex,” J. Neurosci., vol. 34, no. 37, pp. 12587–12600, 2014.
+
+Note that another relevant paper is,
+
+Zhuang, J., Ng, L., Williams, D., Valley, M., Li, Y., Garrett, M., & Waters, J. (2017).
+An extended retinotopic map of mouse cortex. Elife, 6, e18372.
 """
 
 import numpy as np

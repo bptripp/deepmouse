@@ -10,7 +10,11 @@ import scipy.sparse as ss
 import scipy.sparse.linalg as ssla
 from scipy.interpolate import Rbf
 from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt #TODO: plot voxels
+import matplotlib.pyplot as plt
+from sklearn.manifold import LocallyLinearEmbedding, Isomap, TSNE
+from scipy.spatial import Delaunay
+import trimesh
+# import open3d
 from mcmodels.core import VoxelModelCache
 from deepmouse.maps.map import get_positions
 from deepmouse.maps.util import get_child_ids, get_default_structure_tree, print_descriptions
@@ -92,6 +96,9 @@ def get_acronyms_for_layer(target_layer):
             print('Layer {} not found for {}'.format(target_layer, area))
 
     return layer_acronyms
+
+def get_positions_all():
+    pass
 
 
 def get_positions_for_layer(target_layer):
@@ -231,9 +238,16 @@ def save_inner_and_outer_edges():
     positions = load_positions_per_layer()
 
     positions_123 = np.concatenate((positions['1'], positions['2/3']))
-    outer_edge = find_edge(positions['1'], positions_123)
+    # outer_edge = find_edge(positions['1'], positions_123)
     # print(positions['1'].shape)
+
+    positions_12345 = np.concatenate((positions['1'], positions['2/3'], positions['4'], positions['5']))
+    # more_outer_edge = find_edge(positions['2/3'], positions_12345)
+    # outer_edge = np.concatenate((outer_edge, more_outer_edge))
+    # print('outer edge shape:')
     # print(outer_edge.shape)
+
+    outer_edge = find_edge(positions_123, positions_12345)
 
     positions_6 = np.concatenate((positions['6a'], positions['6b']))
     positions_56 = np.concatenate((positions['5'], positions_6))
@@ -256,16 +270,7 @@ def load_inner_and_outer_edges():
 
 
 def save_inner_outer_flags():
-    positions = load_positions_per_layer()
-
-    positions_all = np.concatenate((
-        positions['1'],
-        positions['2/3'],
-        positions['4'],
-        positions['5'],
-        positions['6a'],
-        positions['6b'],
-    ))
+    positions_all = get_positions(cache, 'Isocortex')
 
     edges = load_inner_and_outer_edges()
 
@@ -394,23 +399,11 @@ class CompositeInterpolator:
 
 
 if __name__ == '__main__':
-    # print(get_positions(cache, 'MOp1').shape)
-
-    # for id in get_child_area_ids(get_id(structure_tree, 'VIS')):
-    #     print(get_acronym(structure_tree, id))
-
-
-    # get_positions_for_layer('6b') # total 1056
-    # get_positions_for_layer('1') # total 10298
-    # get_positions_for_layer('6a') # total 12116
-
-
     # save_positions_per_layer()
 
     # save_inner_and_outer_edges()
     edges = load_inner_and_outer_edges()
-    # print(edges)
-    #
+
     # inner_edge = edges['inner']
     # outer_edge = edges['outer']
     # fig = plt.figure(figsize=(6, 6))
@@ -420,22 +413,10 @@ if __name__ == '__main__':
     # plt.tight_layout()
     # plt.show()
 
+    positions_all = get_positions(cache, 'Isocortex')
+
     # save_inner_outer_flags()
-
     # flags = load_inner_outer_flags()
-    #
-    positions = load_positions_per_layer()
-    positions_all = np.concatenate((
-        positions['1'],
-        positions['2/3'],
-        positions['4'],
-        positions['5'],
-        positions['6a'],
-        positions['6b'],
-    ))
-
-    print(positions_all.shape)
-
     # depths = laplace_solution(positions_all, flags['is_outer'], flags['is_inner'])
     # with open('depths.pkl', 'wb') as file:
     #     pickle.dump(depths, file)
@@ -444,10 +425,9 @@ if __name__ == '__main__':
         depths = pickle.load(file)
     depths = np.clip(depths, 0, 7)
 
-    colors = np.zeros((len(depths), 3))
-
-    colors[:,0] = depths/7
-    colors[:,2] = 1-depths/7
+    # colors = np.zeros((len(depths), 3))
+    # colors[:,0] = depths/7
+    # colors[:,2] = 1-depths/7
 
     # plt.hist(depths.flatten(), 100)
     # plt.show()
@@ -471,30 +451,176 @@ if __name__ == '__main__':
     with open('interpolator.pkl', 'rb') as file:
         ci = pickle.load(file)
 
+    # # this loop takes a long time
+    # edge_indices = []
+    # for i in range(positions_all.shape[0]):
+    #     if i % 100 == 0:
+    #         print('Voxel {} of {}'.format(i, positions_all.shape[0]))
+    #
+    #     origin_voxel = positions_all[i, :]
+    #     streamline = get_streamline(ci, origin_voxel)
+    #
+    #     differences = streamline[-1,:] - edges['outer']
+    #     distances = np.linalg.norm(differences, axis=1)
+    #     closest_edge_index = np.argmin(distances)
+    #     edge_indices.append(closest_edge_index)
+    #
+    #
+    # with open('voxel-to-surface.pkl', 'wb') as file:
+    #     pickle.dump({
+    #         'voxel_positions': positions_all,
+    #         'surface_positions': edges['outer'],
+    #         'surface_indices': edge_indices}, file)
+
+    with open('voxel-to-surface.pkl', 'rb') as file:
+        foo = pickle.load(file)
+
+    # print(foo)
     # print(ci(24, 35, 76))
     # print(ci(69, 10, 61))
     # print(get_streamline(ci, [69, 10, 61]))
+    #
+    # fig = plt.figure(figsize=(9, 7))
+    # ax = fig.add_subplot(111, projection='3d')
+    # for i in range(500):
+    #     if i % 50 == 0:
+    #         print('Finding streamline {} of 500'.format(i))
+    #     origin = positions_all[np.random.randint(0, positions_all.shape[0]),:]
+    #     streamline = get_streamline(ci, origin)
+    #     ax.scatter(streamline[0,0], streamline[0,1], streamline[0,2], 'ko')
+    #     ax.plot(streamline[:,0], streamline[:,1], streamline[:,2], 'k-')
+    #
+    #     foo = get_closest_voxel(streamline[-1,:], edges['outer'])
+    #     ax.scatter(foo[0], foo[1], foo[2], 'ko')
+    #     # eo = edges['outer']
+    #     # ax.scatter(eo[:, 0], eo[:, 1], eo[:, 2])
+    #     ax.plot(streamline[:,0], streamline[:,1], streamline[:,2], 'k-')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # plt.show()
 
 
-    fig = plt.figure(figsize=(9, 7))
+    # # need a 2D projection to use delauney for mesh
+    # # alternatively see https://pypi.org/project/MeshPy/
+    # missing edge points (check points above in certain region?) or visualize triangulaion
+    eo = edges['outer']
+    # for i in range(20):
+    #     print(i)
+    #     print(np.where((eo == [51, i, 57]).all(axis=1))[0])
+
+    # lle = LocallyLinearEmbedding(n_components=2)
+    # transformed = lle.fit_transform(eo)
+    # iso = Isomap(n_neighbors=6)
+    # transformed = iso.fit_transform(eo)
+    tsne = TSNE() # note: this varies from run to run - check that it forms a single manifold
+    transformed = tsne.fit_transform(eo)
+
+    plt.scatter(transformed[:,0], transformed[:,1])
+    plt.show()
+
+    # plt.scatter(transformed)
+    tri = Delaunay(transformed)
+    # print(tri.simplices)
+    #
+    # # subset = get_slice_indices(eo, 59, 61)
+    #
+    # # recall x is AP direction (back), z is ML (right), y is down
+    # want pairs to be along an edge, with no convexity between
+    front = [31, 43, 72]
+    back = [103, 24, 90]
+    medial = [60, 21, 58]
+    lateral = [60, 55, 100]
+    #front edge x=31 two points: y=45,z=59 and y=50,z=83
+    #inner edge z=57 two points: x=30,y=44 and x=79y=16
+    # x=85 y=18? z=69
+    medial1 = [33, 45, 59] #30, 44, 57
+    # medial2 = [79, 16, 57]
+    medial2 = [79, 16, 57]
+    medial3 = [85, 18, 69]
+    medial4 = [100, 23, 80]
+    anterior1 = [31, 45, 59]
+    anterior2 = [31, 50, 83]
+    posterior1 = [103, 24, 87]
+    posterior2 = [103, 24, 94]
+    middle = [65, 5, 75]
+    bregma = [51, 13, 57]
+    # middle = [80, 2, 65]
+    # middle = [86, 3, 65]
+
+
+    # fig = plt.figure(figsize=(9, 7))
+    # ax = fig.add_subplot(111, projection='3d')
+    # # ax.scatter(eo[subset, 0], eo[subset, 1], eo[subset, 2])
+    # ax.scatter(eo[:, 0], eo[:, 1], eo[:, 2], c=ap_position)
+    # # ax.scatter(front[0], front[1], front[2], c='r', marker='x')
+    # # ax.scatter(back[0], back[1], back[2], c='r', marker='x')
+    # # ax.scatter(medial[0], medial[1], medial[2], c='r', marker='x')
+    # ax.scatter(lateral[0], lateral[1], lateral[2], c='r', marker='x')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # plt.show()
+
+
+    # print(np.where((eo == front).all(axis=1))[0])
+    # print(np.where((eo == back).all(axis=1))[0])
+    # print(np.where((eo == medial).all(axis=1))[0])
+    # print(np.where((eo == lateral).all(axis=1))[0])
+
+    mesh = trimesh.Trimesh(vertices=eo, faces=tri.simplices)
+    # foo = np.concatenate((transformed, np.zeros((transformed.shape[0], 1))), axis=1)
+    # mesh = trimesh.Trimesh(vertices=foo, faces=tri.simplices)
+    from trimesh.repair import  fix_winding
+    fix_winding(mesh)
+    mesh.show()
+
+    with open('mesh-data.pkl', 'wb') as file:
+        pickle.dump({
+            'vertices': eo,
+            'triangles': tri.simplices,
+            'transformed': transformed,
+            'front': np.where((eo == front).all(axis=1))[0],
+            'back': np.where((eo == back).all(axis=1))[0],
+            'medial': np.where((eo == medial).all(axis=1))[0],
+            'lateral': np.where((eo == lateral).all(axis=1))[0],
+            'medial1': np.where((eo == medial1).all(axis=1))[0],
+            'medial2': np.where((eo == medial2).all(axis=1))[0],
+            'medial3': np.where((eo == medial3).all(axis=1))[0],
+            'medial4': np.where((eo == medial4).all(axis=1))[0],
+            'anterior1': np.where((eo == anterior1).all(axis=1))[0],
+            'anterior2': np.where((eo == anterior2).all(axis=1))[0],
+            'posterior1': np.where((eo == posterior1).all(axis=1))[0],
+            'posterior2': np.where((eo == posterior2).all(axis=1))[0],
+            'middle': np.where((eo == middle).all(axis=1))[0],
+            'bregma': np.where((eo == bregma).all(axis=1))[0]
+        }, file)
+
+    # print(np.where((eo == medial1).all(axis=1))[0])
+    # print(np.where((eo == medial2).all(axis=1))[0])
+    # print(np.where((eo == medial3).all(axis=1))[0])
+    # print(np.where((eo == medial4).all(axis=1))[0])
+    # print(np.where((eo == anterior1).all(axis=1))[0])
+    # print(np.where((eo == anterior2).all(axis=1))[0])
+    # print(np.where((eo == posterior1).all(axis=1))[0])
+    # print(np.where((eo == posterior2).all(axis=1))[0])
+    print(np.where((eo == middle).all(axis=1))[0])
+    print(np.where((eo == bregma).all(axis=1))[0])
+
+    # show 3d voxel locations
+    # fig = plt.figure(figsize=(8,3))
+    # ax = fig.add_subplot(121, projection='3d')
+    fig = plt.figure(figsize=(8,8))
     ax = fig.add_subplot(111, projection='3d')
-    for i in range(500):
-        if i % 50 == 0:
-            print('Finding streamline {} of 500'.format(i))
-        origin = positions_all[np.random.randint(0, positions_all.shape[0]),:]
-        streamline = get_streamline(ci, origin)
-        ax.scatter(streamline[0,0], streamline[0,1], streamline[0,2], 'ko')
-        ax.plot(streamline[:,0], streamline[:,1], streamline[:,2], 'k-')
-
-        foo = get_closest_voxel(streamline[-1,:], edges['outer'])
-        ax.scatter(foo[0], foo[1], foo[2], 'ko')
-        # eo = edges['outer']
-        # ax.scatter(eo[:, 0], eo[:, 1], eo[:, 2])
-        ax.plot(streamline[:,0], streamline[:,1], streamline[:,2], 'k-')
-
     plt.xlabel('x')
     plt.ylabel('y')
+    ax.scatter(eo[:, 0], eo[:, 1], eo[:, 2])
+    ax.set_xlim([45, 55])
+    # ax.set_ylim([10, 30])
+    ax.set_zlim([53, 63])
+    # plt.subplot(122)
+    # plt.scatter(transformed[:,0], transformed[:,1], c=eo[:,0])
+    plt.tight_layout()
     plt.show()
+
 
 
     # min_x = min(positions_all[:,0])
@@ -523,14 +649,9 @@ if __name__ == '__main__':
     # plt.ylabel('y')
     # plt.show()
 
-    # 80, 10, 80 might be a good pivot point for mesh, or 80, 12, 80
+
 
     #from testing, need to stay a couple of voxels from edge of volume, .1 voxel steps ok
-    #TODO: streamlines from random positions
-    #TODO: find outer surface point for each voxel
-    #TODO: flatmap
-
-
 
     # with open('interpolator.pkl', 'wb') as file:
     #     pickle.dump(interpolator, file)

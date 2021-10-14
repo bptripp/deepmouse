@@ -9,8 +9,10 @@ the barrel cortex, and that the barrel cortex has some additional corners that d
 """
 
 import numpy as np
+from scipy.interpolate import interp2d
 import matplotlib.pyplot as plt
-from deepmouse.maps.map import Border
+from mcmodels.core import VoxelModelCache
+from deepmouse.maps.map import Border, is_inside, get_positions
 
 
 #TODO: clean up
@@ -22,9 +24,13 @@ class WhiskerMap:
     """
     Estimates map of whisker identity for barrel-cortex voxels.
     """
-    def __init__(self, cache=None, plot_borders=False):
-        self.border = Border(area='barrel') #TODO: clean up
-        self._l4_positions = self.border._get_positions('SSp-bfd4')
+    def __init__(self, cache, plot_borders=False):
+        # self.border = Border(area='barrel') #TODO: clean up
+        # self._l4_positions = self.border._get_positions('SSp-bfd4')
+        self.positions = get_positions(cache, 'SSp-bfd')
+        self._l4_positions = get_positions(cache, 'SSp-bfd4')
+        self.centers = None
+        self.border = None
 
         stacks = {}
 
@@ -44,11 +50,56 @@ class WhiskerMap:
             thin_positions.append(np.mean(p, axis=0))
         self._l4_positions = np.array(thin_positions)
 
-        # flat_centre_AUDp = find_centre(flat_border_AUDp)
-        # flat_centre_VISam = find_centre(self.border.get_flatmap_border('VISam'))
-        # flat_centre_VISal = find_centre(self.border.get_flatmap_border('VISal'))
-        # flat_angle_VISam = get_angle(flat_centre_VISam - flat_centre_AUDp)
-        # flat_angle_VISal = get_angle(flat_centre_VISal - flat_centre_AUDp)
+    def set_barrel_centers(self, centers):
+        self.centers = centers
+
+    def set_border(self, border):
+        self.border = border
+
+    def set_azimuth_elevation(self, azimuth, elevation):
+        # Estimates for L4
+        if self.centers is None or self.border is None:
+            raise Exception('Call set_barrel_centers() and set_border() first')
+
+        self.azimuth_function = interp2d(self.centers[:,0], self.centers[:,1], azimuth, kind='cubic')
+        self.elevation_function = interp2d(self.centers[:,0], self.centers[:,1], elevation, kind='cubic')
+
+    def get_azimuth(self, position):
+        closest = self._find_closest_l4_position(position)
+        if self._inside_border(closest):
+            return self.azimuth_function(closest[0], closest[2])[0]
+        else:
+            return None
+
+    def get_elevation(self, position):
+        closest = self._find_closest_l4_position(position)
+        if self._inside_border(closest):
+            return self.elevation_function(closest[0], closest[2])[0]
+        else:
+            return None
+
+    def _find_closest_l4_position(self, position):
+        l4_distances = np.linalg.norm(position - self._l4_positions, axis=1)
+        return self._l4_positions[np.argmin(l4_distances), :]
+
+    def _inside_border(self, position):
+        point = (position[0], position[2])
+        return is_inside(self.border, point)
+
+    def parameterize(self):
+        border = np.array(barrel_border)
+        centres = np.array(barrel_centres)
+        border[:, 0] = -border[:, 0]
+        centres[:, 0] = -centres[:, 0]
+        angle = -.55
+        scale_factor = 18.25
+        offset = (70.75, 77.125)
+        border = transform(border, angle, scale_factor, offset)
+        centres = transform(centres, angle, scale_factor, offset)
+        self.set_barrel_centers(centres)
+        self.set_border(border)
+        ae = np.array(barrel_azimith_elevation)
+        self.set_azimuth_elevation(ae[:, 0], ae[:, 1])
 
 
 # Barrel centres in this order:
@@ -93,7 +144,48 @@ barrel_centres = [
     [0.9310344827586207, 0.40093603744149753]
 ]
 
-border = [
+# a1-4, b1-4, c1-8, d1-8, e1-9
+barrel_azimith_elevation = [
+    [0, 3.5], # alpha
+    [0, 2.5], # beta
+    [0, 1.5], # gamma
+    [0, 0.5], # delta
+    [1, 5], # a1-4
+    [2, 5],
+    [3, 5],
+    [4, 5],
+    [1, 4], # b1-4
+    [2, 4],
+    [3, 4],
+    [4, 4],
+    [1, 3], #c1-8
+    [2, 3],
+    [3, 3],
+    [4, 3],
+    [5, 3],
+    [6, 3],
+    [7, 3],
+    [8, 3],
+    [1, 2], # d1-8
+    [2, 2],
+    [3, 2],
+    [4, 2],
+    [5, 2],
+    [6, 2],
+    [7, 2],
+    [8, 2],
+    [1, 1], # e1-9
+    [2, 1],
+    [3, 1],
+    [4, 1],
+    [5, 1],
+    [6, 1],
+    [7, 1],
+    [8, 1],
+    [9, 1]
+]
+
+barrel_border = [
     [0.8965517241379309, 0.7098283931357253],
     [0.8013793103448276, 0.6817472698907955],
     [0.7393103448275861, 0.6661466458658345],
@@ -189,12 +281,54 @@ def get_colour(barrel_index):
         return cmap(barrel_index % cmap.N)
 
 
-def plot(map, centres):
-    source_mask = map.border.cache.get_source_mask()
+def plot_ae(cache, map):
+    positions = map.positions
+
+    source_mask = cache.get_source_mask()
+    source_keys = source_mask.get_key(structure_ids=None)
+    source_key_volume = source_mask.map_masked_to_annotation(source_keys)
+    voxels = source_key_volume < 0 #all False
+    voxels[positions[:,0], positions[:,1], positions[:,2]] = True
+
+    colors = np.empty(voxels.shape, dtype=object)
+    for i in range(positions.shape[0]):
+        print('{} of {}'.format(i, positions.shape[0]))
+
+        color = [0, 0, 0, 1]
+        azimuth = map.get_azimuth(positions[i,:])
+        if azimuth:
+            color[0] = max(azimuth / 10, 0)
+
+        # elevation = map.get_elevation(positions[i,:])
+        # if elevation:
+        #     color[1] = min(max(elevation / 5, 0), 1)
+
+        print('colour {}'.format(color))
+        colors[positions[i][0], positions[i][1], positions[i][2]] = color
+
+    fig = plt.figure(figsize=(4,3))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.voxels(voxels, facecolors=colors, edgecolor='k')
+    ax.set_xlabel('back')
+    ax.set_ylabel('down')
+    ax.set_zlabel('lateral')
+    ax.set_xlim((min(positions[:,0]), max(positions[:,0])))
+    ax.set_ylim((min(positions[:,1]), max(positions[:,1])))
+    ax.set_zlim((min(positions[:,2]), max(positions[:,2])))
+    ax.azim = -90
+    ax.elev = -15
+    ax.set_title('Barrels')
+    plt.tight_layout()
+    plt.show()
+
+
+def plot(cache, map, centres):
+    source_mask = cache.get_source_mask()
     source_keys = source_mask.get_key(structure_ids=None)
     source_key_volume = source_mask.map_masked_to_annotation(source_keys)
 
-    positions = map.border._get_positions('SSp-bfd')
+    positions = map.positions
+    # positions = map.border._get_positions('SSp-bfd')
     # positions = map.border._get_positions('SSp-bfd4')
 
     voxels = source_key_volume < 0 #all False
@@ -203,8 +337,9 @@ def plot(map, centres):
     colors = np.empty(voxels.shape, dtype=object)
     for i in range(positions.shape[0]):
         print('{} of {}'.format(i, positions.shape[0]))
-        barrel_index = get_barrel(centres, positions[i,:], map)
+        barrel_index = get_barrel(centres, positions[i,:], map) #could do get azimuth / elevation?
         c = get_colour(barrel_index)
+        print(c)
         colors[positions[i][0], positions[i][1], positions[i][2]] = c
 
     fig = plt.figure(figsize=(4,3))
@@ -224,11 +359,13 @@ def plot(map, centres):
 
 
 if __name__ == '__main__':
-    map = WhiskerMap()
+    cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
+    map = WhiskerMap(cache)
+
     # flat_border_SSp_bfd = map.border.get_flatmap_border('SSp-bfd')
-    border = np.array(border)
+    barrel_border = np.array(barrel_border)
     centres = np.array(barrel_centres)
-    border[:,0] = -border[:,0]
+    barrel_border[:, 0] = -barrel_border[:, 0]
     centres[:,0] = -centres[:,0]
     angle = -.55
     # border = rotate(border, angle)
@@ -239,16 +376,17 @@ if __name__ == '__main__':
     offset = (70.75,77.125)
     # border = shift(border, offset)
     # centres = shift(centres, offset)
-    border = transform(border, angle, scale_factor, offset)
+    barrel_border = transform(barrel_border, angle, scale_factor, offset)
     centres = transform(centres, angle, scale_factor, offset)
-    bx = [x for x in border[:,0]]
-    by = [y for y in border[:,1]]
+    bx = [x for x in barrel_border[:, 0]]
+    by = [y for y in barrel_border[:, 1]]
     bx.append(bx[0])
     by.append(by[0])
     plt.plot(bx, by, 'k')
     plt.plot(centres[:,0], centres[:,1], 'ko')
 
-    positions = map.border._get_positions('SSp-bfd4') # back, down, lateral
+    positions = get_positions(cache, 'SSp-bfd4')
+    # positions = map.border._get_positions('SSp-bfd4') # back, down, lateral
     draw_voxel_squares(positions)
     plt.xlabel('posterior')
     plt.ylabel('lateral')
@@ -257,4 +395,10 @@ if __name__ == '__main__':
     plt.tight_layout()
     plt.show()
 
-    plot(map, centres)
+    map.set_barrel_centers(centres)
+    map.set_border(barrel_border)
+    ae = np.array(barrel_azimith_elevation)
+    map.set_azimuth_elevation(ae[:,0], ae[:,1])
+
+    plot_ae(cache, map)
+    # plot(cache, map, centres)

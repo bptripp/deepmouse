@@ -37,20 +37,75 @@ class Border:
         # return np.array(positions)
 
 
-def get_positions(cache, area):
-    source_mask = cache.get_source_mask()
-    source_keys = source_mask.get_key(structure_ids=None)
+def get_positions(cache, area, target=False):
+    """
+    :param cache: VoxelModelCache
+    :param area: acronym
+    :param target: if True return target voxels, otherwise source voxels (default False)
+    :return: positions in order of cache's source mask (note target positions don't match)
+    """
 
     structure_tree = cache.get_structure_tree()
     id = structure_tree.get_id_acronym_map()[area]
-    mask_indices = np.array(source_mask.mask.nonzero())
 
-    positions = []
-    for i in range(len(source_keys)):  # single hemisphere
-        if structure_tree.structure_descends_from(source_keys[i], id):
-            positions.append(mask_indices[:, i])
+    def get_positions_for_mask(mask):
+        keys = mask.get_key(structure_ids=None)
+        mask_indices = np.array(mask.mask.nonzero())
 
-    return np.array(positions)
+        positions = []
+        for i in range(len(keys)):
+            if structure_tree.structure_descends_from(keys[i], id):
+                positions.append(mask_indices[:, i])
+
+        return positions
+
+    if target:
+        target_positions = get_positions_for_mask(cache.get_target_mask())
+        positions = np.array(target_positions)
+    else:
+        source_positions = get_positions_for_mask(cache.get_source_mask()) # single hemisphere
+        positions = np.array(source_positions)
+
+    # target_positions = get_positions_for_mask(cache.get_target_mask())
+    # target_positions = np.array(target_positions)
+    #
+    # foo_positions ends up identical to source_positions
+    # min_z = np.min(source_positions[:,2])
+    # foo_positions = []
+    # for t in target_positions:
+    #     if t[2] >= min_z:
+    #         foo_positions.append(t)
+    # foo_positions = np.array(foo_positions)
+    # print(foo_positions.shape)
+    #
+    # diffs = np.linalg.norm(source_positions - foo_positions, axis=1)
+    # print(np.max(diffs))
+
+    return positions
+
+
+def right_target_indices(cache):
+    """
+    :return: Indices of target voxels that correspond to source voxels (right hemisphere)
+    """
+    source_positions = get_positions(cache, 'Isocortex', target=False)
+    target_positions = get_positions(cache, 'Isocortex', target=True)
+
+    min_z = np.min(source_positions[:,2])
+    test_positions = []
+    indices = []
+    for i, t in enumerate(target_positions):
+        if t[2] >= min_z:
+            test_positions.append(t)
+            indices.append(i)
+    test_positions = np.array(test_positions)
+
+    diffs = np.linalg.norm(source_positions - test_positions, axis=1)
+
+    if np.max(diffs) > 0:
+        raise Exception('Source and right-hemisphere target voxel lists do not match')
+
+    return np.array(indices)
 
 
 class Morph:
@@ -223,3 +278,17 @@ class Curve():
         a = point - self.points[closest]
         b = self.points[second_closest] - self.points[closest]
         return np.abs(np.cross(a, b) / np.linalg.norm(b))
+
+
+if __name__ == '__main__':
+    cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
+    sp = get_positions(cache, 'Isocortex')
+    print(sp.shape)
+    tp = get_positions(cache, 'Isocortex', target=True)
+    print(tp.shape)
+
+    r = right_target_indices(cache)
+
+    foo = tp[r,:]
+    print(foo.shape)
+

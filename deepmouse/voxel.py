@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pickle
 from mcmodels.core import Mask, VoxelModelCache
@@ -8,30 +9,40 @@ Code for estimating density profiles of inter-area connections from voxel model
 of mouse connectome (Knox et al. 2019).
 """
 
-
 class VoxelModel():
     # we make a shared instance because the model's state doesn't change
     # but it takes several seconds to instantiate, so we only want to do it once
     _instance = None
 
-    def __init__(self):
+    def __init__(self, data_folder='data_files/'):
         cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
         self.source_mask = cache.get_source_mask()
         self.source_keys = self.source_mask.get_key(structure_ids=None)
 
-        with open('voxel-connectivity-weights.pkl', 'rb') as file:
-            self.weights = pickle.load(file)
-        with open('voxel-connectivity-nodes.pkl', 'rb') as file:
-            self.nodes = pickle.load(file)
-
+        weight_file = data_folder + '/voxel-weights.pkl'
+        node_file = data_folder + '/voxel-nodes.pkl'
+        if os.path.isfile(weight_file) and os.path.isfile(node_file):
+            with open(weight_file, 'rb') as file:
+                self.weights = pickle.load(file)
+            with open(node_file, 'rb') as file:
+                self.nodes = pickle.load(file)
+        else:
+            print('Loading weights from cache (takes several minutes) ...')
+            self.weights = cache.get_weights()
+            self.nodes = cache.get_nodes()
+            with open(weight_file, 'wb') as file:
+                pickle.dump(self.weights, file)
+            with open(node_file, 'wb') as file:
+                pickle.dump(self.nodes, file)
         self.structure_tree = cache.get_structure_tree()
 
-    def get_weights(self, source_name='VISp2/3', target_name='VISpm4'):
+    def get_weights(self, source_name, target_name):
         pre_id = self.structure_tree.get_id_acronym_map()[source_name]
         post_id = self.structure_tree.get_id_acronym_map()[target_name]
 
         pre_indices = []
         post_indices = []
+
         for i in range(len(self.source_keys)):
             if self.structure_tree.structure_descends_from(self.source_keys[i], pre_id):
                 pre_indices.append(i)
@@ -44,14 +55,70 @@ class VoxelModel():
             weights_by_target_voxel.append(w)
         return weights_by_target_voxel
 
+    def get_positions(self, source_name):
+        pre_id = self.structure_tree.get_id_acronym_map()[source_name]
+        mask_indices = np.array(self.source_mask.mask.nonzero())
+
+        pre_positions = []
+        for i in range(len(self.source_keys)):
+            if self.structure_tree.structure_descends_from(self.source_keys[i], pre_id):
+                pre_positions.append(mask_indices[:, i])
+
+        return pre_positions
+
     @staticmethod
-    def get_instance():
+    def get_instance(data_folder='data_files/'):
         """
         :return: Shared instance of VoxelModel
         """
         if VoxelModel._instance is None:
-            VoxelModel._instance = VoxelModel()
+            VoxelModel._instance = VoxelModel(data_folder=data_folder)
         return VoxelModel._instance
+
+
+# class VoxelModel():
+#     # we make a shared instance because the model's state doesn't change
+#     # but it takes several seconds to instantiate, so we only want to do it once
+#     _instance = None
+#
+#     def __init__(self):
+#         cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
+#         self.source_mask = cache.get_source_mask()
+#         self.source_keys = self.source_mask.get_key(structure_ids=None)
+#
+#         with open('voxel-connectivity-weights.pkl', 'rb') as file:
+#             self.weights = pickle.load(file)
+#         with open('voxel-connectivity-nodes.pkl', 'rb') as file:
+#             self.nodes = pickle.load(file)
+#
+#         self.structure_tree = cache.get_structure_tree()
+#
+#     def get_weights(self, source_name='VISp2/3', target_name='VISpm4'):
+#         pre_id = self.structure_tree.get_id_acronym_map()[source_name]
+#         post_id = self.structure_tree.get_id_acronym_map()[target_name]
+#
+#         pre_indices = []
+#         post_indices = []
+#         for i in range(len(self.source_keys)):
+#             if self.structure_tree.structure_descends_from(self.source_keys[i], pre_id):
+#                 pre_indices.append(i)
+#             if self.structure_tree.structure_descends_from(self.source_keys[i], post_id):
+#                 post_indices.append(i)
+#
+#         weights_by_target_voxel = []
+#         for pi in post_indices:
+#             w = np.dot(self.weights[pre_indices,:], self.nodes[:,pi])
+#             weights_by_target_voxel.append(w)
+#         return weights_by_target_voxel
+#
+#     @staticmethod
+#     def get_instance():
+#         """
+#         :return: Shared instance of VoxelModel
+#         """
+#         if VoxelModel._instance is None:
+#             VoxelModel._instance = VoxelModel()
+#         return VoxelModel._instance
 
 
 areas = ['VISp', 'VISpm']
@@ -199,7 +266,7 @@ def find_radius(flatmap):
 
 
 if __name__ == '__main__':
-    # vm = VoxelModel()
+    vm = VoxelModel()
     # print('got voxel model')
     # weights = vm.get_weights(source_name='VISp2/3', target_name='VISpm4')
     # print('got weights')
@@ -209,8 +276,8 @@ if __name__ == '__main__':
     # t = Target('VISpm', '4')
     # print('foo')
 
-    t = Target('VISpm', '4')
-    t.set_gamma()
-    print(t)
+    # t = Target('VISpm', '4')
+    # t.set_gamma()
+    # print(t)
 
 

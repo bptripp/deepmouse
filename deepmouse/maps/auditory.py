@@ -43,12 +43,12 @@ class FrequencyMap:
         self.cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
         self._positions23 = get_positions(self.cache, 'AUDp2/3')
         self._poles = get_poles(self._positions23)
-        print(self._poles)
+        # print(self._poles)
 
         # print(self._positions23)
         frequencies = [get_preferred_frequency(p, self._poles) for p in self._positions23]
         self._frequencies23 = np.array(frequencies)
-        print(self._frequencies23)
+        # print(self._frequencies23)
 
     def get_preferred_frequency(self, position):
         l23_distances = np.linalg.norm(position - self._positions23, axis=1)
@@ -125,7 +125,7 @@ def get_preferred_frequency(position23, poles):
     log_low = np.log(3000)
     log_high = np.log(30000)
     log_preferred = log_low + fraction*(log_high-log_low)
-    print('{} {} {}'.format(fraction, log_preferred, np.exp(log_preferred)))
+    # print('{} {} {}'.format(fraction, log_preferred, np.exp(log_preferred)))
     return np.exp(log_preferred)
 
 

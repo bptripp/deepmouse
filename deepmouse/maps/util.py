@@ -107,6 +107,7 @@ def get_positions(cache, id):
 if __name__ == '__main__':
     structure_tree = get_default_structure_tree()
 
+    print(get_id(structure_tree, 'VISp'))
     # print(get_id(structure_tree, 'VISp2/3'))
     # print(get_id(structure_tree, 'VISpm4'))
 
@@ -124,8 +125,16 @@ if __name__ == '__main__':
     # for id in [245, 871, 967, 1009, 997]:
     #     print_descriptions(structure_tree, id)
 
+    print_descriptions(structure_tree, 315) #isocortex
+
     for id in get_child_ids(structure_tree, 315):
         print_descriptions(structure_tree, id)
+
+    cache = get_voxel_model_cache()
+    p = get_positions(cache, 315)
+    print(p.shape)
+    p = get_positions(cache, 385)
+    print(p.shape)
 
     #
     # ids = get_ancestor_ids(structure_tree, 312782558)
