@@ -7,17 +7,14 @@ import gdist
 from shapely.geometry import Polygon, Point
 import pandas as pd
 from deepmouse.maps.map import right_target_indices
+from deepmouse.maps.util import ResultCache
 
-with open('mesh-data.pkl', 'rb') as file:
-    data = pickle.load(file)
+
+data = ResultCache.get('mesh-data')
 
 vertices = data['vertices'].astype(float)
 triangles = data['triangles'].astype('int32')
 transformed = data['transformed']
-# front = data['front'].astype('int32')
-# back = data['back'].astype('int32')
-# medial = data['medial'].astype('int32')
-# lateral = data['lateral'].astype('int32')
 medial1 = data['medial1'].astype('int32')
 medial2 = data['medial2'].astype('int32')
 medial3 = data['medial3'].astype('int32')
@@ -27,74 +24,26 @@ anterior2 = data['anterior2'].astype('int32')
 posterior1 = data['posterior1'].astype('int32')
 posterior2 = data['posterior2'].astype('int32')
 middle = data['middle'].astype('int32')
-# middle = data['bregma'].astype('int32')
-print(middle)
 
-# front_dist = gdist.compute_gdist(vertices, triangles, source_indices=front)
-# back_dist = gdist.compute_gdist(vertices, triangles, source_indices=back)
-# medial_dist = gdist.compute_gdist(vertices, triangles, source_indices=medial)
-# lateral_dist = gdist.compute_gdist(vertices, triangles, source_indices=lateral)
-# medial1_dist = gdist.compute_gdist(vertices, triangles, source_indices=medial1)
-# medial2_dist = gdist.compute_gdist(vertices, triangles, source_indices=medial2)
-# medial3_dist = gdist.compute_gdist(vertices, triangles, source_indices=medial3)
-# medial4_dist = gdist.compute_gdist(vertices, triangles, source_indices=medial4)
-# anterior1_dist = gdist.compute_gdist(vertices, triangles, source_indices=anterior1)
-# anterior2_dist = gdist.compute_gdist(vertices, triangles, source_indices=anterior2)
-# posterior1_dist = gdist.compute_gdist(vertices, triangles, source_indices=posterior1)
-# posterior2_dist = gdist.compute_gdist(vertices, triangles, source_indices=posterior2)
 middle_dist = gdist.compute_gdist(vertices, triangles, source_indices=middle)
-
-# plt.plot(middle_dist)
-# plt.show()
 
 # mesh probably screwed up near holes
 # foo = np.where((vertices - vertices[middle] == anterior1).all(axis=1))[0],
 
-with open('dist-data-3.pkl', 'wb') as file:
-    pickle.dump({
-        # 'medial1': medial1_dist,
-        # 'medial2': medial2_dist,
-        # 'medial3': medial3_dist,
-        # 'medial4': medial4_dist,
-        # 'anterior1': anterior1_dist,
-        # 'anterior2': anterior2_dist,
-        # 'posterior1': posterior1_dist,
-        # 'posterior2': posterior2_dist,
-        'middle': middle,
-        'middle_dist': middle_dist,
-        'vertices': vertices
-    }, file)
-
-
-# geodesic distance of each surface voxel to selected voxels
-with open('dist-data-3.pkl', 'rb') as file:
-    data = pickle.load(file)
-
-# plt.hist(data['lateral'])
-# plt.show()
-
-# print(data['lateral'].shape)
-# print(data['back'].shape)
-
-
-# p = 1.6
-# lateral_dist = data['lateral']**p
-# medial_dist = data['medial']**p
-# ml_position = (medial_dist - lateral_dist) / (medial_dist + lateral_dist)
-# front_dist = data['front']**p
-# back_dist = data['back']**p
-# ap_position = (back_dist - front_dist) / (back_dist + front_dist)
-#
-# plt.scatter(ml_position, ap_position, marker='.')
-# plt.show()
-
-# with open('voxel-to-surface.pkl', 'rb') as file:
-#     vs = pickle.load(file)
-#
-# print(vs['voxel_positions'].shape)
-# print(vs['surface_positions'].shape)
-# print(len(vs['surface_indices']))
-
+# with open('dist-data-3.pkl', 'wb') as file:
+#     pickle.dump({
+#         # 'medial1': medial1_dist,
+#         # 'medial2': medial2_dist,
+#         # 'medial3': medial3_dist,
+#         # 'medial4': medial4_dist,
+#         # 'anterior1': anterior1_dist,
+#         # 'anterior2': anterior2_dist,
+#         # 'posterior1': posterior1_dist,
+#         # 'posterior2': posterior2_dist,
+#         'middle': middle,
+#         'middle_dist': middle_dist,
+#         'vertices': vertices
+#     }, file)
 
 
 def cross_prod(p0, p1, p2):
@@ -220,46 +169,23 @@ def concave_hull(points):
 
 class GeodesicFlatmap():
     def __init__(self):
-        p = 1 # exponent on distance (higher makes flatmap more round)
+        data = ResultCache.get('dist-data-3')
+        middle = data['middle']
+        middle_dist = data['middle_dist']
+        vertices = data['vertices']
 
-        with open('dist-data-3.pkl', 'rb') as file:
-            data = pickle.load(file)
-            # medial1_dist = data['medial1']**p
-            # medial2_dist = data['medial2']**p
-            # medial3_dist = data['medial3']**p
-            # medial4_dist = data['medial4']**p
-            # anterior1_dist = data['anterior1']**p
-            # anterior2_dist = data['anterior2']**p
-            # posterior1_dist = data['posterior1']**p
-            # posterior2_dist = data['posterior2']**p
-            # self.ml_position = medial1_dist + medial2_dist
-            # self.ap_position = medial3_dist + medial4_dist
-            # self.ml_position = (medial_dist - lateral_dist) / (medial_dist + lateral_dist)
-            # self.ap_position = (back_dist - front_dist) / (back_dist + front_dist)
-            # self.ml_position = (medial_dist - lateral_dist) / (medial_dist + lateral_dist)
-            # self.ap_position = (back_dist - front_dist) / (back_dist + front_dist)
-            middle = data['middle']
-            middle_dist = data['middle_dist']
-            vertices = data['vertices']
+        angles = np.arctan2(vertices[:,2] - vertices[middle,2], vertices[:,0] - vertices[middle,0])
+        self.ap_position = - np.cos(angles) * middle_dist
+        self.ml_position = np.sin(angles) * middle_dist
 
-            angles = np.arctan2(vertices[:,2] - vertices[middle,2], vertices[:,0] - vertices[middle,0])
-            self.ap_position = - np.cos(angles) * middle_dist
-            self.ml_position = np.sin(angles) * middle_dist
-
-        with open('voxel-to-surface.pkl', 'rb') as file:
-            vs = pickle.load(file)
-            self.voxel_positions = vs['voxel_positions']
-            self.surface_indices = vs['surface_indices']
+        vs = ResultCache.get('voxel-to-surface')
+        self.voxel_positions = vs['voxel_positions']
+        self.surface_indices = vs['surface_indices']
 
         print(middle_dist.shape)
         print(self.voxel_positions.shape)
         print(len(self.surface_indices))
         print(self.surface_indices)
-
-        # print(self.ml_position.shape)
-        # print(self.ap_position.shape)
-        # print(self.voxel_positions.shape)
-        # print(len(self.surface_indices))
 
         self.voxel_colours = None
         self.clear_voxel_colours()
@@ -304,12 +230,6 @@ class GeodesicFlatmap():
             flatmap_sums[surface_index,:] = flatmap_sums[surface_index,:] + voxel_colour
             flatmap_counts[surface_index] = flatmap_counts[surface_index] + 1
             pos3d[surface_index,:] = vertices[surface_index,:]
-
-            # if pos3d[surface_index,0] < 10 and pos3d[surface_index,1] < 10 and pos3d[surface_index,2] < 10:
-            #     print('bad: {}'.format(surface_index))
-
-        # plt.plot(pos3d)
-        # plt.show()
 
         # plt.figure(figsize=(10,4))
         flatmap_colours = (flatmap_sums.T / flatmap_counts).T
@@ -356,8 +276,7 @@ class GeodesicFlatmap():
             image[:,:,i] = channel_grid
             print(channel_grid.shape)
 
-        chull = concave_hull(x)
-        # chull = convex_hull(x)
+        chull = ResultCache.get('chull', function=lambda: concave_hull(x))
         s = Polygon(x[chull,:])
 
         mask = np.zeros(flat_x.shape[0])
@@ -576,10 +495,6 @@ probe_areas = ['VISal', 'VISam', 'VISl', 'VISp', 'VISpl', 'VISpm', 'VISli', 'VIS
 # plt.savefig('mix-per-step.png')
 # plt.show()
 
-
-# foo = get_weights('VISp', 'Isocortex')
-# bar = get_weights('SSp', 'Isocortex')
-# print('weights shape {}, {}'.format(len(foo), len(foo[0])))
 
 flatmap = GeodesicFlatmap()
 

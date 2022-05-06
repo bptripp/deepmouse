@@ -1,9 +1,48 @@
 """
-Utility methods for the purpose of remembering how to use the API.
+Utility code for the Allen API.
 """
+import os
 import numpy as np
+import pickle
 from allensdk.core.mouse_connectivity_cache import MouseConnectivityCache
 from mcmodels.core import VoxelModelCache
+
+
+class ResultCache:
+    """
+    Storage of expensive computational results.
+    """
+
+    cache = {}
+
+    @classmethod
+    def get(cls, name, filepath=None, function=None):
+        """
+        :param name: Key for storage and retrieval of a computational result
+        :param filepath: Path to pickle file for storage of result (defaults to [name].pkl)
+        :param function: Code to generate result (must be a zero-arg function that returns result)
+        :return: the result
+        """
+        if name in cls.cache:
+            return cls.cache[name]
+
+        if filepath is None:
+            filepath = '{}.pkl'.format(name)
+
+        if os.path.isfile(filepath):
+            with open(filepath, 'rb') as file:
+                result = pickle.load(file)
+            cls.cache[name] = result
+            return result
+
+        if function is not None:
+            result = function()
+            with open(filepath, 'wb') as file:
+                pickle.dump(result, file)
+            cls.cache[name] = result
+            return result
+
+        raise Exception('Unknown result: ' + name)
 
 
 def get_ancestor_ids(structure_tree, structure_id):

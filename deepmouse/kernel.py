@@ -6,7 +6,7 @@ import numpy as np
 from timeit import default_timer as timer
 import matplotlib.pyplot as plt
 from mcmodels.core import Mask, VoxelModelCache
-from deepmouse.util import search_id_by_acronym
+from deepmouse.maps.util import search_id_by_acronym
 from deepmouse.flatmap import FlatMap
 from deepmouse.garrett import VoxelRetinotopy
 
