@@ -10,22 +10,23 @@ from deepmouse.maps.map import right_target_indices
 from deepmouse.maps.util import ResultCache
 
 
-data = ResultCache.get('mesh-data')
+# data = ResultCache.get('mesh-data')
+#
+# vertices = data['vertices'].astype(float)
+# triangles = data['triangles'].astype('int32')
+# transformed = data['transformed']
+# medial1 = data['medial1'].astype('int32')
+# medial2 = data['medial2'].astype('int32')
+# medial3 = data['medial3'].astype('int32')
+# medial4 = data['medial4'].astype('int32')
+# anterior1 = data['anterior1'].astype('int32')
+# anterior2 = data['anterior2'].astype('int32')
+# posterior1 = data['posterior1'].astype('int32')
+# posterior2 = data['posterior2'].astype('int32')
+# middle = data['middle'].astype('int32')
 
-vertices = data['vertices'].astype(float)
-triangles = data['triangles'].astype('int32')
-transformed = data['transformed']
-medial1 = data['medial1'].astype('int32')
-medial2 = data['medial2'].astype('int32')
-medial3 = data['medial3'].astype('int32')
-medial4 = data['medial4'].astype('int32')
-anterior1 = data['anterior1'].astype('int32')
-anterior2 = data['anterior2'].astype('int32')
-posterior1 = data['posterior1'].astype('int32')
-posterior2 = data['posterior2'].astype('int32')
-middle = data['middle'].astype('int32')
 
-middle_dist = gdist.compute_gdist(vertices, triangles, source_indices=middle)
+# middle_dist = gdist.compute_gdist(vertices, triangles, source_indices=middle)
 
 # mesh probably screwed up near holes
 # foo = np.where((vertices - vertices[middle] == anterior1).all(axis=1))[0],
@@ -169,12 +170,21 @@ def concave_hull(points):
 
 class GeodesicFlatmap():
     def __init__(self):
-        data = ResultCache.get('dist-data-3')
-        middle = data['middle']
-        middle_dist = data['middle_dist']
-        vertices = data['vertices']
+        data = ResultCache.get('mesh-data')
+        vertices = data['vertices'].astype(float)
+        triangles = data['triangles'].astype('int32')
 
-        angles = np.arctan2(vertices[:,2] - vertices[middle,2], vertices[:,0] - vertices[middle,0])
+        # data = ResultCache.get('dist-data-3')
+        # middle = data['middle']
+
+        reference_coords = [65, 5, 75]
+
+        reference = np.where((vertices == reference_coords).all(axis=1))[0].astype('int32')
+        # middle_dist = data['middle_dist']
+        # vertices = data['vertices']
+        middle_dist = gdist.compute_gdist(vertices, triangles, source_indices=reference)
+
+        angles = np.arctan2(vertices[:,2] - vertices[reference,2], vertices[:,0] - vertices[reference,0])
         self.ap_position = - np.cos(angles) * middle_dist
         self.ml_position = np.sin(angles) * middle_dist
 
@@ -224,12 +234,12 @@ class GeodesicFlatmap():
     def show_map(self, image_file=None):
         flatmap_sums = np.zeros((self.ml_position.shape[0], 3))
         flatmap_counts = np.zeros(self.ml_position.shape[0]) + 1e-6
-        pos3d = np.zeros((self.ml_position.shape[0], 3))
+        # pos3d = np.zeros((self.ml_position.shape[0], 3))
 
         for (voxel_colour, surface_index) in zip(self.voxel_colours, self.surface_indices):
             flatmap_sums[surface_index,:] = flatmap_sums[surface_index,:] + voxel_colour
             flatmap_counts[surface_index] = flatmap_counts[surface_index] + 1
-            pos3d[surface_index,:] = vertices[surface_index,:]
+            # pos3d[surface_index,:] = vertices[surface_index,:]
 
         # plt.figure(figsize=(10,4))
         flatmap_colours = (flatmap_sums.T / flatmap_counts).T
