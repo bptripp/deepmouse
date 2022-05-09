@@ -1,50 +1,11 @@
 import os
 import numpy as np
 import pickle
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import gdist
 from shapely.geometry import Polygon, Point
-import pandas as pd
 from deepmouse.maps.map import right_target_indices
 from deepmouse.maps.util import ResultCache
-
-
-# data = ResultCache.get('mesh-data')
-#
-# vertices = data['vertices'].astype(float)
-# triangles = data['triangles'].astype('int32')
-# transformed = data['transformed']
-# medial1 = data['medial1'].astype('int32')
-# medial2 = data['medial2'].astype('int32')
-# medial3 = data['medial3'].astype('int32')
-# medial4 = data['medial4'].astype('int32')
-# anterior1 = data['anterior1'].astype('int32')
-# anterior2 = data['anterior2'].astype('int32')
-# posterior1 = data['posterior1'].astype('int32')
-# posterior2 = data['posterior2'].astype('int32')
-# middle = data['middle'].astype('int32')
-
-
-# middle_dist = gdist.compute_gdist(vertices, triangles, source_indices=middle)
-
-# mesh probably screwed up near holes
-# foo = np.where((vertices - vertices[middle] == anterior1).all(axis=1))[0],
-
-# with open('dist-data-3.pkl', 'wb') as file:
-#     pickle.dump({
-#         # 'medial1': medial1_dist,
-#         # 'medial2': medial2_dist,
-#         # 'medial3': medial3_dist,
-#         # 'medial4': medial4_dist,
-#         # 'anterior1': anterior1_dist,
-#         # 'anterior2': anterior2_dist,
-#         # 'posterior1': posterior1_dist,
-#         # 'posterior2': posterior2_dist,
-#         'middle': middle,
-#         'middle_dist': middle_dist,
-#         'vertices': vertices
-#     }, file)
 
 
 def cross_prod(p0, p1, p2):
@@ -169,19 +130,15 @@ def concave_hull(points):
 
 
 class GeodesicFlatmap():
-    def __init__(self):
+    def __init__(self, area=None):
         data = ResultCache.get('mesh-data')
         vertices = data['vertices'].astype(float)
         triangles = data['triangles'].astype('int32')
 
-        # data = ResultCache.get('dist-data-3')
-        # middle = data['middle']
-
-        reference_coords = [65, 5, 75]
+        if area is None:
+            reference_coords = [65, 5, 75]
 
         reference = np.where((vertices == reference_coords).all(axis=1))[0].astype('int32')
-        # middle_dist = data['middle_dist']
-        # vertices = data['vertices']
         middle_dist = gdist.compute_gdist(vertices, triangles, source_indices=reference)
 
         angles = np.arctan2(vertices[:,2] - vertices[reference,2], vertices[:,0] - vertices[reference,0])
@@ -234,30 +191,12 @@ class GeodesicFlatmap():
     def show_map(self, image_file=None):
         flatmap_sums = np.zeros((self.ml_position.shape[0], 3))
         flatmap_counts = np.zeros(self.ml_position.shape[0]) + 1e-6
-        # pos3d = np.zeros((self.ml_position.shape[0], 3))
 
         for (voxel_colour, surface_index) in zip(self.voxel_colours, self.surface_indices):
             flatmap_sums[surface_index,:] = flatmap_sums[surface_index,:] + voxel_colour
             flatmap_counts[surface_index] = flatmap_counts[surface_index] + 1
-            # pos3d[surface_index,:] = vertices[surface_index,:]
 
-        # plt.figure(figsize=(10,4))
         flatmap_colours = (flatmap_sums.T / flatmap_counts).T
-        # plt.subplot(121)
-        # plt.scatter(self.ml_position, self.ap_position, marker='.', c=flatmap_colours)
-        # plt.axis('equal')
-        # plt.tight_layout()
-
-        # plt.scatter(transformed[:,0], transformed[:,1], marker='.', c=flatmap_colours)
-        # plt.scatter(self.ml_position, self.ap_position, marker='.')
-        # fig = plt.figure(figsize=(8, 8))
-        # ax = fig.add_subplot(111, projection='3d')
-        # plt.xlabel('x')
-        # plt.ylabel('y')
-        # ax.scatter(pos3d[:,0], pos3d[:,1], pos3d[:,2], marker='.', c=flatmap_colours)
-        # # ax.set_xlim([-5, 5])
-        # # ax.set_ylim([-5, 5])
-        # # ax.set_zlim([-5, 5])
 
         # create pixel image
         width_pixels = 200
