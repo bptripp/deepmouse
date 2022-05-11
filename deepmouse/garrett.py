@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
 from mcmodels.core import Mask, VoxelModelCache
-from deepmouse.flatmap import FlatMap
+from deepmouse.maps.flatmap import FlatMap
 
 
 class Morph:

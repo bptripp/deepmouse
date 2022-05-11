@@ -451,6 +451,7 @@ if __name__ == '__main__':
     with open('interpolator.pkl', 'rb') as file:
         ci = pickle.load(file)
 
+    # note: result seems unreasonable for voxel 57486: [91 12 83]
     # # this loop takes a long time
     # edge_indices = []
     # for i in range(positions_all.shape[0]):

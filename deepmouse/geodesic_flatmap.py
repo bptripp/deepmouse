@@ -6,6 +6,11 @@ import gdist
 from shapely.geometry import Polygon, Point
 from deepmouse.maps.map import right_target_indices
 from deepmouse.maps.util import ResultCache
+from deepmouse.maps.util import get_voxel_model_cache, get_positions, get_id, get_default_structure_tree
+
+
+cache = get_voxel_model_cache()
+structure_tree = get_default_structure_tree()
 
 
 def cross_prod(p0, p1, p2):
@@ -129,27 +134,51 @@ def concave_hull(points):
     return chull
 
 
+# def find_middle(area):
+#     """
+#     :param area: name of cortical area
+#     :return: average of 3D voxel coordinates
+#     """
+#     id = get_id(structure_tree, area)
+#     positions = get_positions(cache, id)
+#     middle = np.mean(positions)
+
+
+
 class GeodesicFlatmap():
     def __init__(self, area=None):
         data = ResultCache.get('mesh-data')
         vertices = data['vertices'].astype(float)
         triangles = data['triangles'].astype('int32')
 
-        if area is None:
-            reference_coords = [65, 5, 75]
-
-        reference = np.where((vertices == reference_coords).all(axis=1))[0].astype('int32')
-        middle_dist = gdist.compute_gdist(vertices, triangles, source_indices=reference)
-
-        angles = np.arctan2(vertices[:,2] - vertices[reference,2], vertices[:,0] - vertices[reference,0])
-        self.ap_position = - np.cos(angles) * middle_dist
-        self.ml_position = np.sin(angles) * middle_dist
-
         vs = ResultCache.get('voxel-to-surface')
         self.voxel_positions = vs['voxel_positions']
         self.surface_indices = vs['surface_indices']
 
-        print(middle_dist.shape)
+        if area is None:
+            reference_coords = [65, 5, 75]
+        else:
+            id = get_id(structure_tree, area)
+            positions = get_positions(cache, id)
+            middle = np.mean(positions, axis=0)
+            vertex_distances = np.sum((vertices - middle) ** 2, axis=1)
+            closest_index = np.argmin(vertex_distances)
+            reference_coords = vertices[closest_index]
+            # distances = np.sum((self.voxel_positions - middle)**2, axis=1)
+            # closest_index = np.argmin(distances)
+            # surface_index = self.surface_indices[closest_index]
+            # reference_coords = self.voxel_positions[surface_index]
+
+
+        reference = np.where((vertices == reference_coords).all(axis=1))[0].astype('int32')
+        reference_dist = gdist.compute_gdist(vertices, triangles, source_indices=reference)
+
+        angles = np.arctan2(vertices[:,2] - vertices[reference,2], vertices[:,0] - vertices[reference,0])
+        self.ap_position = - np.cos(angles) * reference_dist
+        self.ml_position = np.sin(angles) * reference_dist
+        self.vertices = vertices
+
+        print(reference_dist.shape)
         print(self.voxel_positions.shape)
         print(len(self.surface_indices))
         print(self.surface_indices)
@@ -293,9 +322,6 @@ class GeodesicFlatmap():
 # plt.scatter(transformed[:,0], transformed[:,1])
 # plt.show()
 
-from deepmouse.maps.util import get_voxel_model_cache, get_positions, get_id, get_default_structure_tree
-cache = get_voxel_model_cache()
-structure_tree = get_default_structure_tree()
 
 
 # def get_weights(source_name, target_name, data_folder='data_files/'):
@@ -415,47 +441,6 @@ def propagate_through_isocortex(vectors, data_folder='data_files/', ignore_zero_
     return np.array(result)
 
 
-probe_areas = ['VISal', 'VISam', 'VISl', 'VISp', 'VISpl', 'VISpm', 'VISli', 'VISpor', 'VISa', 'VISrl']
-
-# # plot results of probe
-# all_means = np.zeros((6, 10, 3))
-# all_sds = np.zeros((6, 10, 3))
-# for i in range(6):
-#     with open('step_{}_probe.pkl'.format(i), 'rb') as file:
-#         probe_areas, means, sds = pickle.load(file)
-#
-#     all_means[i,:,:] = means
-#     all_sds[i,:,:] = sds
-#
-# plt.figure(figsize=(8,4))
-# for i in range(10):
-#     plt.subplot(2,5,i+1)
-#     plt.title(probe_areas[i])
-#     means = all_means[:,i,:]
-#     sds = all_sds[:,i,:]
-#     plt.errorbar(range(6), means[:,0], yerr=sds[:,0], capsize=3, fmt='r.')
-#     plt.errorbar(range(6), means[:,1], yerr=sds[:,1], capsize=3, fmt='g.')
-#     plt.errorbar(range(6), means[:,2], yerr=sds[:,2], capsize=3, fmt='b.')
-#     plt.ylim([0, 1])
-# plt.subplot(2,5,1), plt.ylabel('Fraction Input')
-# plt.subplot(2,5,6), plt.ylabel('Fraction Input')
-# plt.subplot(2,5,8), plt.xlabel('Steps')
-# plt.tight_layout()
-# plt.savefig('mix-per-step.png')
-# plt.show()
-
-
-flatmap = GeodesicFlatmap()
-
-# id = get_id(structure_tree, 'Isocortex')
-# positions = get_positions(cache, id)
-# for position in positions:
-#     flatmap.set_voxel_colour(position, [0, 0, .2])
-
-from deepmouse.maps.visual import VoxelRetinotopy
-from deepmouse.maps.auditory import FrequencyMap
-from deepmouse.maps.barrel import WhiskerMap
-
 def set_nan_to_zero(number):
     if not number:
         return 0
@@ -463,100 +448,6 @@ def set_nan_to_zero(number):
         return 0
     else:
         return number
-
-## propagate topography ...
-# voxel_retinotopy = VoxelRetinotopy(cache)
-# id = get_id(structure_tree, 'VISp')
-# positions = get_positions(cache, id)
-# for position in positions:
-#     azimuth, altitude = voxel_retinotopy.get_retinal_coords(position)
-#     flatmap.set_voxel_colour(position,
-#                              [(set_nan_to_zero(azimuth)+60)/120, 1, (set_nan_to_zero(altitude)+40)/80])
-
-# whisker_map = WhiskerMap(cache)
-# whisker_map.parameterize()
-# id = get_id(structure_tree, 'SSp-bfd')
-# positions = get_positions(cache, id)
-# for position in positions:
-#     azimuth = whisker_map.get_azimuth(position)
-#     elevation = whisker_map.get_elevation(position)
-#     flatmap.set_voxel_colour(position, [set_nan_to_zero(azimuth)/9, 1, set_nan_to_zero(elevation)/5])
-
-# frequency_map = FrequencyMap(cache)
-# id = get_id(structure_tree, 'AUDp')
-# positions = get_positions(cache, id)
-# for position in positions:
-#     log_pf = np.log(frequency_map.get_preferred_frequency(position))
-#     fraction = (log_pf - np.log(3000)) / (np.log(30000) - np.log(3000))
-#     flatmap.set_voxel_colour(position, [set_nan_to_zero(fraction), 1, 0])
-
-# # propagate vectors with full topography ...
-# flatmap.clear_voxel_vectors(5)
-# voxel_retinotopy = VoxelRetinotopy(cache)
-# id = get_id(structure_tree, 'VISp')
-# positions = get_positions(cache, id)
-# for position in positions:
-#     azimuth, altitude = voxel_retinotopy.get_retinal_coords(position)
-#     vv = flatmap.get_voxel_vector(position)
-#     vv[0] = set_nan_to_zero(azimuth)
-#     vv[1] = set_nan_to_zero(altitude)
-#     flatmap.set_voxel_vector(position, vv)
-#
-# whisker_map = WhiskerMap(cache)
-# whisker_map.parameterize()
-# id = get_id(structure_tree, 'SSp-bfd')
-# positions = get_positions(cache, id)
-# for position in positions:
-#     azimuth = whisker_map.get_azimuth(position)
-#     elevation = whisker_map.get_elevation(position)
-#     vv = flatmap.get_voxel_vector(position)
-#     vv[2] = set_nan_to_zero(azimuth)
-#     vv[3] = set_nan_to_zero(elevation)
-#     flatmap.set_voxel_vector(position, vv)
-#
-# frequency_map = FrequencyMap(cache)
-# id = get_id(structure_tree, 'AUDp')
-# positions = get_positions(cache, id)
-# for position in positions:
-#     log_pf = np.log(frequency_map.get_preferred_frequency(position))
-#     vv = flatmap.get_voxel_vector(position)
-#     vv[4] = set_nan_to_zero(log_pf)
-#     flatmap.set_voxel_vector(position, vv)
-#
-# # subtract mean to avoid correlation via changes in strength
-# for i in range(5):
-#     print('subtracting {}'.format(np.mean(flatmap.voxel_vectors[:,i])))
-#     flatmap.voxel_vectors[:,i] = flatmap.voxel_vectors[:,i] - np.mean(flatmap.voxel_vectors[:,i])
-
-
-# set areas to a solid colour ...
-# id = get_id(structure_tree, 'VISp')
-id = get_id(structure_tree, 'RSPagl')
-positions = get_positions(cache, id)
-for position in positions:
-    flatmap.set_voxel_colour(position, [1, 0, 0])
-id = get_id(structure_tree, 'RSPd')
-positions = get_positions(cache, id)
-for position in positions:
-    flatmap.set_voxel_colour(position, [1, 0, 0])
-id = get_id(structure_tree, 'RSPv')
-positions = get_positions(cache, id)
-for position in positions:
-    flatmap.set_voxel_colour(position, [1, 0, 0])
-
-# id = get_id(structure_tree, 'SSp-bfd')
-# id = get_id(structure_tree, 'SSp')
-id = get_id(structure_tree, 'ACA')
-positions = get_positions(cache, id)
-for position in positions:
-    flatmap.set_voxel_colour(position, [0, 1, 0])
-
-# id = get_id(structure_tree, 'AUDp')
-# id = get_id(structure_tree, 'MOp')
-id = get_id(structure_tree, 'TEa')
-positions = get_positions(cache, id)
-for position in positions:
-    flatmap.set_voxel_colour(position, [0, 0, 1])
 
 
 def get_probe_area_colours():
@@ -597,38 +488,175 @@ def get_probe_area_vector_corr():
     return corrs
 
 
-step_i = flatmap.voxel_colours
-# step_i = flatmap.voxel_vectors # **************
-with open('step_0.pkl', 'wb') as file:
-    pickle.dump(step_i, file)
+if __name__ == '__main__':
+    probe_areas = ['VISal', 'VISam', 'VISl', 'VISp', 'VISpl', 'VISpm', 'VISli', 'VISpor', 'VISa', 'VISrl']
 
-means, sds = get_probe_area_colours()
-with open('step_0_probe.pkl', 'wb') as file:
-    pickle.dump((probe_areas, means, sds), file)
-# corrs = get_probe_area_vector_corr() # *******************
-# with open('step_0_probe_corr.pkl', 'wb') as file:
-#     pickle.dump((probe_areas, corrs), file)
+    # # plot results of probe
+    # all_means = np.zeros((6, 10, 3))
+    # all_sds = np.zeros((6, 10, 3))
+    # for i in range(6):
+    #     with open('step_{}_probe.pkl'.format(i), 'rb') as file:
+    #         probe_areas, means, sds = pickle.load(file)
+    #
+    #     all_means[i,:,:] = means
+    #     all_sds[i,:,:] = sds
+    #
+    # plt.figure(figsize=(8,4))
+    # for i in range(10):
+    #     plt.subplot(2,5,i+1)
+    #     plt.title(probe_areas[i])
+    #     means = all_means[:,i,:]
+    #     sds = all_sds[:,i,:]
+    #     plt.errorbar(range(6), means[:,0], yerr=sds[:,0], capsize=3, fmt='r.')
+    #     plt.errorbar(range(6), means[:,1], yerr=sds[:,1], capsize=3, fmt='g.')
+    #     plt.errorbar(range(6), means[:,2], yerr=sds[:,2], capsize=3, fmt='b.')
+    #     plt.ylim([0, 1])
+    # plt.subplot(2,5,1), plt.ylabel('Fraction Input')
+    # plt.subplot(2,5,6), plt.ylabel('Fraction Input')
+    # plt.subplot(2,5,8), plt.xlabel('Steps')
+    # plt.tight_layout()
+    # plt.savefig('mix-per-step.png')
+    # plt.show()
 
-flatmap.show_map(image_file='step_0.png')
-plt.show()
 
-for i in range(1,6):
-    step_i = propagate_through_isocortex(step_i)
-    # step_i = propagate_through_isocortex(step_i, ignore_zero_vectors=True) #*********
-    # print(step_i)
-    # flatmap.voxel_vectors = step_i # *************************
-    flatmap.voxel_colours = 2*step_i
+    flatmap = GeodesicFlatmap()
 
-    with open('step_{}.pkl'.format(i), 'wb') as file:
+    # id = get_id(structure_tree, 'Isocortex')
+    # positions = get_positions(cache, id)
+    # for position in positions:
+    #     flatmap.set_voxel_colour(position, [0, 0, .2])
+
+    from deepmouse.maps.visual import VoxelRetinotopy
+    from deepmouse.maps.auditory import FrequencyMap
+    from deepmouse.maps.barrel import WhiskerMap
+
+    ## propagate topography ...
+    # voxel_retinotopy = VoxelRetinotopy(cache)
+    # id = get_id(structure_tree, 'VISp')
+    # positions = get_positions(cache, id)
+    # for position in positions:
+    #     azimuth, altitude = voxel_retinotopy.get_retinal_coords(position)
+    #     flatmap.set_voxel_colour(position,
+    #                              [(set_nan_to_zero(azimuth)+60)/120, 1, (set_nan_to_zero(altitude)+40)/80])
+
+    # whisker_map = WhiskerMap(cache)
+    # whisker_map.parameterize()
+    # id = get_id(structure_tree, 'SSp-bfd')
+    # positions = get_positions(cache, id)
+    # for position in positions:
+    #     azimuth = whisker_map.get_azimuth(position)
+    #     elevation = whisker_map.get_elevation(position)
+    #     flatmap.set_voxel_colour(position, [set_nan_to_zero(azimuth)/9, 1, set_nan_to_zero(elevation)/5])
+
+    # frequency_map = FrequencyMap(cache)
+    # id = get_id(structure_tree, 'AUDp')
+    # positions = get_positions(cache, id)
+    # for position in positions:
+    #     log_pf = np.log(frequency_map.get_preferred_frequency(position))
+    #     fraction = (log_pf - np.log(3000)) / (np.log(30000) - np.log(3000))
+    #     flatmap.set_voxel_colour(position, [set_nan_to_zero(fraction), 1, 0])
+
+    # # propagate vectors with full topography ...
+    # flatmap.clear_voxel_vectors(5)
+    # voxel_retinotopy = VoxelRetinotopy(cache)
+    # id = get_id(structure_tree, 'VISp')
+    # positions = get_positions(cache, id)
+    # for position in positions:
+    #     azimuth, altitude = voxel_retinotopy.get_retinal_coords(position)
+    #     vv = flatmap.get_voxel_vector(position)
+    #     vv[0] = set_nan_to_zero(azimuth)
+    #     vv[1] = set_nan_to_zero(altitude)
+    #     flatmap.set_voxel_vector(position, vv)
+    #
+    # whisker_map = WhiskerMap(cache)
+    # whisker_map.parameterize()
+    # id = get_id(structure_tree, 'SSp-bfd')
+    # positions = get_positions(cache, id)
+    # for position in positions:
+    #     azimuth = whisker_map.get_azimuth(position)
+    #     elevation = whisker_map.get_elevation(position)
+    #     vv = flatmap.get_voxel_vector(position)
+    #     vv[2] = set_nan_to_zero(azimuth)
+    #     vv[3] = set_nan_to_zero(elevation)
+    #     flatmap.set_voxel_vector(position, vv)
+    #
+    # frequency_map = FrequencyMap(cache)
+    # id = get_id(structure_tree, 'AUDp')
+    # positions = get_positions(cache, id)
+    # for position in positions:
+    #     log_pf = np.log(frequency_map.get_preferred_frequency(position))
+    #     vv = flatmap.get_voxel_vector(position)
+    #     vv[4] = set_nan_to_zero(log_pf)
+    #     flatmap.set_voxel_vector(position, vv)
+    #
+    # # subtract mean to avoid correlation via changes in strength
+    # for i in range(5):
+    #     print('subtracting {}'.format(np.mean(flatmap.voxel_vectors[:,i])))
+    #     flatmap.voxel_vectors[:,i] = flatmap.voxel_vectors[:,i] - np.mean(flatmap.voxel_vectors[:,i])
+
+
+    # set areas to a solid colour ...
+    # id = get_id(structure_tree, 'VISp')
+    id = get_id(structure_tree, 'RSPagl')
+    positions = get_positions(cache, id)
+    for position in positions:
+        flatmap.set_voxel_colour(position, [1, 0, 0])
+    id = get_id(structure_tree, 'RSPd')
+    positions = get_positions(cache, id)
+    for position in positions:
+        flatmap.set_voxel_colour(position, [1, 0, 0])
+    id = get_id(structure_tree, 'RSPv')
+    positions = get_positions(cache, id)
+    for position in positions:
+        flatmap.set_voxel_colour(position, [1, 0, 0])
+
+    # id = get_id(structure_tree, 'SSp-bfd')
+    # id = get_id(structure_tree, 'SSp')
+    id = get_id(structure_tree, 'ACA')
+    positions = get_positions(cache, id)
+    for position in positions:
+        flatmap.set_voxel_colour(position, [0, 1, 0])
+
+    # id = get_id(structure_tree, 'AUDp')
+    # id = get_id(structure_tree, 'MOp')
+    id = get_id(structure_tree, 'TEa')
+    positions = get_positions(cache, id)
+    for position in positions:
+        flatmap.set_voxel_colour(position, [0, 0, 1])
+
+
+    step_i = flatmap.voxel_colours
+    # step_i = flatmap.voxel_vectors # **************
+    with open('step_0.pkl', 'wb') as file:
         pickle.dump(step_i, file)
 
     means, sds = get_probe_area_colours()
-    with open('step_{}_probe.pkl'.format(i), 'wb') as file:
+    with open('step_0_probe.pkl', 'wb') as file:
         pickle.dump((probe_areas, means, sds), file)
     # corrs = get_probe_area_vector_corr() # *******************
-    # with open('step_{}_probe_corr.pkl'.format(i), 'wb') as file:
+    # with open('step_0_probe_corr.pkl', 'wb') as file:
     #     pickle.dump((probe_areas, corrs), file)
 
-    flatmap.show_map(image_file='step_{}.png'.format(i))
+    flatmap.show_map(image_file='step_0.png')
+    plt.show()
 
-# TODO: draw lines around VISp and other visual areas?
+    for i in range(1,6):
+        step_i = propagate_through_isocortex(step_i)
+        # step_i = propagate_through_isocortex(step_i, ignore_zero_vectors=True) #*********
+        # print(step_i)
+        # flatmap.voxel_vectors = step_i # *************************
+        flatmap.voxel_colours = 2*step_i
+
+        with open('step_{}.pkl'.format(i), 'wb') as file:
+            pickle.dump(step_i, file)
+
+        means, sds = get_probe_area_colours()
+        with open('step_{}_probe.pkl'.format(i), 'wb') as file:
+            pickle.dump((probe_areas, means, sds), file)
+        # corrs = get_probe_area_vector_corr() # *******************
+        # with open('step_{}_probe_corr.pkl'.format(i), 'wb') as file:
+        #     pickle.dump((probe_areas, corrs), file)
+
+        flatmap.show_map(image_file='step_{}.png'.format(i))
+
+    # TODO: draw lines around VISp and other visual areas?
