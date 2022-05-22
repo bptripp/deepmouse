@@ -8,76 +8,69 @@ position. It propagates these coordinates through the connectivity model. This p
 non-primary voxel, an estimate of its coordinates in sensory space.
 """
 
-# cache = get_voxel_model_cache()
-# structure_tree = get_default_structure_tree()
-#
+# # area = 'VISp'
+# # area = 'AUDp'
+# # area = 'PIR'
+# # area = 'SSp-bfd'
+# # area = 'SSp-m'
+# # area = 'SSp-n'
 # area = 'SSp-ul'
-# id = get_id(structure_tree, area)
-# print("'{}': {}".format(area, id))
-# positions = get_positions(cache, id)
-# print(len(positions))
-
-# area = 'VISp'
-# area = 'AUDp'
-# area = 'PIR'
-# area = 'SSp-bfd'
-# area = 'SSp-m'
-# area = 'SSp-n'
-area = 'SSp-ul'
-flatmap = FlatMap(area=area)
-flatmap._fit()
-# print(flatmap.centre)
-# print(flatmap.radius)
-# print(np.mean(flatmap.positions_3d.T, axis=0))
-# print(np.mean(flatmap.positions_3d.T, axis=0) - flatmap.centre)
-# flatmap._plot_residuals()
-# positions_2d = []
-# for position_3d in flatmap.positions_3d.T:
-#     position_2d = flatmap.get_position_2d(position_3d)
-#     positions_2d.append(position_2d)
-# positions_2d = np.array(positions_2d)
-positions_2d = flatmap.positions_2d.T
-
-centre = np.mean(positions_2d, axis=0)
-squared_distances = np.sum((positions_2d - centre)**2, axis=1)
-sd = (np.sum(squared_distances)/len(positions_2d))**.5
-print(centre)
-print(sd)
-
-rel_positions = positions_2d - centre
-rel_positions = rel_positions / sd
-
-import matplotlib.pyplot as plt
-plt.scatter(rel_positions[:,0], rel_positions[:,1])
-# plt.scatter(positions_2d[:,0], positions_2d[:,1])
-plt.axis('equal')
-plt.show()
-
-# id = get_id(structure_tree, area)
-# print("'{}': {}".format(area, id))
-# positions = get_positions(cache, id)
-
-
-# flatmap = GeodesicFlatmap(area=area)
+# flatmap = FlatMap(area=area)
+# flatmap._fit()
+# positions_2d = flatmap.positions_2d.T
 #
-# surface_positions = []
-# positions_list = positions.tolist()
-# for i, vertex in enumerate(flatmap.vertices):
-#     vertex = vertex.astype('int32').tolist()
-#     if vertex in positions_list:
-#         surface_positions.append([flatmap.ml_position[i], flatmap.ap_position[i]])
-# surface_positions = np.array(surface_positions)
-#
-# centre = np.mean(surface_positions, axis=0)
-# squared_distances = np.sum((surface_positions - centre)**2, axis=1)
-# sd = (np.sum(squared_distances)/len(surface_positions))**.5
-#
+# centre = np.mean(positions_2d, axis=0)
+# squared_distances = np.sum((positions_2d - centre)**2, axis=1)
+# sd = (np.sum(squared_distances)/len(positions_2d))**.5
 # print(centre)
 # print(sd)
 #
-# rel_positions = surface_positions - centre
+# rel_positions = positions_2d - centre
 # rel_positions = rel_positions / sd
 #
 # import matplotlib.pyplot as plt
 # plt.scatter(rel_positions[:,0], rel_positions[:,1])
+# # plt.scatter(positions_2d[:,0], positions_2d[:,1])
+# plt.axis('equal')
 # plt.show()
+
+
+class Gaussian2D:
+    def __init__(self, weight, mean, covariance):
+        self.weight = weight
+        self.mean = np.array(mean)
+        self.covariance = np.array(covariance)
+
+    def to_vector(self):
+        np.concatenate(self.weight, self.mean.flatten(), self.covariance.flatten())
+
+    def __str__(self):
+        return 'weight: {} mean: {} covariance: {}'.format(self.weight, self.mean, self.covariance.flatten())
+
+
+class GaussianMixture2D:
+    def __init__(self, gaussians):
+        self.gaussians = gaussians
+
+    def approx(self):
+        weight_sum = 0
+        weighted_sum_means = np.zeros(2)
+        covariance = np.zeros((2,2))
+
+        for g in self.gaussians:
+            weight_sum = weight_sum + g.weight
+            weighted_sum_means = weighted_sum_means + g.weight * g.mean
+        mean = weighted_sum_means / weight_sum
+
+        for g in self.gaussians:
+            between = np.outer(g.mean - mean, g.mean - mean)
+            covariance = covariance + g.weight/weight_sum*(between + g.covariance)
+
+        return Gaussian2D(weight_sum, mean, covariance)
+
+
+if __name__ == '__main__':
+    g1 = Gaussian2D(1, [2, 0], [[4, 1], [1, 4]])
+    g2 = Gaussian2D(1, [0, 0], [[4, 1], [1, 4]])
+    mix = GaussianMixture2D([g1, g2])
+    print(mix.approx())
