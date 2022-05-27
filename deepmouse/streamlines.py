@@ -413,7 +413,7 @@ if __name__ == '__main__':
     # plt.tight_layout()
     # plt.show()
 
-    positions_all = get_positions(cache, 'Isocortex')
+    positions_all = get_positions(cache, 'Isocortex') # these are in source order
 
     # save_inner_outer_flags()
     # flags = load_inner_outer_flags()

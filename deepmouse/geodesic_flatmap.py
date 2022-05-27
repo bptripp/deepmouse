@@ -152,7 +152,7 @@ class GeodesicFlatmap():
         triangles = data['triangles'].astype('int32')
 
         vs = ResultCache.get('voxel-to-surface')
-        self.voxel_positions = vs['voxel_positions']
+        self.voxel_positions = vs['voxel_positions'] # Isocortex, source order
         self.surface_indices = vs['surface_indices']
 
         if area is None:

@@ -129,6 +129,7 @@ def print_descriptions(structure_tree, structure_ids, verbose=False):
 
 
 def get_positions(cache, id):
+    # similar function in map
     source_mask = cache.get_source_mask()
     source_keys = source_mask.get_key(structure_ids=None)
     structure_tree = cache.get_structure_tree()
