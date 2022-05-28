@@ -4,7 +4,6 @@ import numpy as np
 from deepmouse.maps.util import get_voxel_model_cache, get_default_structure_tree
 from deepmouse.maps.flatmap import FlatMap
 from deepmouse.maps.map import right_target_indices, get_positions
-import tracemalloc
 import time
 
 """
@@ -92,8 +91,8 @@ class Gaussian2D:
 
 
 class GaussianMixture2D:
-    def __init__(self, gaussians=[]):
-        self.gaussians = gaussians
+    def __init__(self):
+        self.gaussians = []
 
     def add(self, gaussian):
         self.gaussians.append(gaussian)
@@ -194,20 +193,17 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
             if weight > inclusion_threshold:
                 mixture.add(Gaussian2D(weight*g.weight, g.mean, g.covariance))
 
+        # print('{} of {} th: {}'.format(len(mixture.gaussians), len(gaussians), inclusion_threshold))
         return mixture
 
     result = []
-    tracemalloc.start()
-    t = time.time()
     for i, target_index in enumerate(right_target_cortex_indices):
         if i % 100 == 0:
-            print('{} of {} elapsed {}'.format(i, len(right_target_cortex_indices), time.time()-t))
-            t = time.time()
-            print(tracemalloc.get_traced_memory())
+            print('{} of {}'.format(i, len(right_target_cortex_indices)))
 
         mixture = get_mixture_for_target_voxel(target_index)
+
         result.append(mixture.approx())
-    tracemalloc.stop()
     return result
 
 
