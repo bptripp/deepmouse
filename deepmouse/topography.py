@@ -4,6 +4,9 @@ import numpy as np
 from deepmouse.maps.util import get_voxel_model_cache, get_default_structure_tree
 from deepmouse.maps.flatmap import FlatMap
 from deepmouse.maps.map import right_target_indices, get_positions
+import tracemalloc
+import time
+
 """
 This code assigns coordinates to each voxel of each primary sensory area based on its flatmap
 position. It propagates these coordinates through the connectivity model. This produces, for each
@@ -194,11 +197,17 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
         return mixture
 
     result = []
+    tracemalloc.start()
+    t = time.time()
     for i, target_index in enumerate(right_target_cortex_indices):
-        print('{} of {}'.format(i, len(right_target_cortex_indices)))
+        if i % 100 == 0:
+            print('{} of {} elapsed {}'.format(i, len(right_target_cortex_indices), time.time()-t))
+            t = time.time()
+            print(tracemalloc.get_traced_memory())
+
         mixture = get_mixture_for_target_voxel(target_index)
         result.append(mixture.approx())
-
+    tracemalloc.stop()
     return result
 
 
