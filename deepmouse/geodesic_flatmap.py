@@ -178,10 +178,10 @@ class GeodesicFlatmap():
         self.ml_position = np.sin(angles) * reference_dist
         self.vertices = vertices
 
-        print(reference_dist.shape)
-        print(self.voxel_positions.shape)
-        print(len(self.surface_indices))
-        print(self.surface_indices)
+        # print(reference_dist.shape)
+        # print(self.voxel_positions.shape)
+        # print(len(self.surface_indices))
+        # print(self.surface_indices)
 
         self.voxel_colours = None
         self.clear_voxel_colours()
@@ -216,6 +216,17 @@ class GeodesicFlatmap():
         if len(ind) == 0:
             raise Exception('Unknown voxel: {}'.format(voxel_position))
         return self.voxel_vectors[ind[0],:]
+
+    def get_voxel_index(self, voxel_position):
+        ind = np.where((self.voxel_positions == voxel_position).all(axis=1))[0] #TODO: extract get_ind
+        if len(ind) == 0:
+            raise Exception('Unknown voxel: {}'.format(voxel_position))
+        return ind[0]
+
+    def get_position_2d(self, voxel_position):
+        voxel_index = self.get_voxel_index(voxel_position)
+        surface_index = self.surface_indices[voxel_index]
+        return [self.ml_position[surface_index], self.ap_position[surface_index]]
 
     def show_map(self, image_file=None):
         flatmap_sums = np.zeros((self.ml_position.shape[0], 3))
@@ -290,6 +301,30 @@ class GeodesicFlatmap():
         plt.tight_layout()
         if image_file:
             plt.savefig(image_file)
+
+    def draw_boundary(self, area):
+        id = structure_tree.get_id_acronym_map()[area]
+        area_positions = get_positions(cache, id)
+        area_positions_2d = np.array([self.get_position_2d(p) for p in area_positions])
+        hull = concave_hull(area_positions_2d)
+        hull.append(hull[0]) # close the boundary
+        hull.append(hull[1]) # extra points to avoid edge effects when filtering
+        hull.append(hull[2])
+        boundary = area_positions_2d[hull, :]
+        boundary[:, 0] = np.convolve(boundary[:, 0], [1 / 3, 1 / 3, 1 / 3], 'same')
+        boundary[:, 1] = np.convolve(boundary[:, 1], [1 / 3, 1 / 3, 1 / 3], 'same')
+        boundary = boundary[1:-1, :] # remove extra points
+
+        width_pixels = 200 #TODO: redundant with code in show_map
+        ml_range = max(self.ml_position) - min(self.ml_position)
+        ap_range = max(self.ap_position) - min(self.ap_position)
+        height_pixels = int(width_pixels * ap_range / ml_range)
+        image_boundary = np.zeros_like(boundary)
+        image_boundary[:, 0] = (boundary[:, 0] - min(self.ml_position)) / ml_range * width_pixels
+        image_boundary[:, 1] = (boundary[:, 1] - min(self.ap_position)) / ap_range * height_pixels
+        image_boundary[:, 1] = height_pixels - image_boundary[:, 1]
+
+        plt.plot(image_boundary[:, 0], image_boundary[:, 1], 'w')
 
 
 # test poly_area ...
