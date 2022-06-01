@@ -1,10 +1,10 @@
 import os
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 from deepmouse.maps.util import get_voxel_model_cache, get_default_structure_tree
 from deepmouse.maps.flatmap import FlatMap
 from deepmouse.maps.map import right_target_indices, get_positions
-import time
 
 """
 This code assigns coordinates to each voxel of each primary sensory area based on its flatmap
@@ -173,7 +173,7 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
     right_target_cortex_indices = target_cortex_indices[r]
 
     cortex_weights = weights[source_cortex_indices,:]
-    cortex_nodes = nodes[:,right_target_cortex_indices]
+    # cortex_nodes = nodes[:,right_target_cortex_indices]
 
     positions_all = get_positions(cache, 'Isocortex')  # these are in source order
     def get_source_index(position_3d):
@@ -185,7 +185,8 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
     indices = [get_source_index(p) for p in positions_3d]
 
     def get_mixture_for_target_voxel(target_index):
-        target_weights = np.dot(cortex_nodes[:,target_index].T, cortex_weights.T)
+        # target_weights = np.dot(cortex_nodes[:,target_index].T, cortex_weights.T)
+        target_weights = np.dot(nodes[:,target_index].T, cortex_weights.T)
         inclusion_threshold = 0.01 * np.max(target_weights)
         mixture = GaussianMixture2D()
         for g, p, ind in zip(gaussians, positions_3d, indices):
@@ -214,9 +215,39 @@ if __name__ == '__main__':
     # print(mix.approx())
 
     area = 'VISp'
-    gaussians, positions_3d = get_primary_gaussians(area)
-    propagated = propagate_gaussians_through_isocortex(gaussians, positions_3d)
 
-    with open('propagated {}'.format(area), 'wb') as file:
-        pickle.dump(propagated, file)
+    # gaussians, positions_3d = get_primary_gaussians(area)
+    # propagated = propagate_gaussians_through_isocortex(gaussians, positions_3d)
+    #
+    # with open('propagated {}'.format(area), 'wb') as file:
+    #     pickle.dump(propagated, file)
+
+    with open('propagated {}'.format(area), 'rb') as file:
+        propagated = pickle.load(file)
+    print(len(propagated))
+
+    from deepmouse.geodesic_flatmap import GeodesicFlatmap, concave_hull
+    flatmap = GeodesicFlatmap()
+    print(len(flatmap.voxel_positions))
+
+    weights = [gaussian.weight for gaussian in propagated]
+    max_weight = np.max(weights)
+    print(max_weight)
+
+    # set voxel colours
+    for i, gaussian in enumerate(propagated):
+        if len(gaussian.mean) < 2: # bug in gaussian, change this
+            x = gaussian.mean[0][0]
+            x = np.clip(x, -1.5, 1.5)
+            red = (x+1.5)/3
+            blue = 1-red
+            brightness = (gaussian.weight / max_weight) ** (1/4)
+            flatmap.set_voxel_colour(flatmap.voxel_positions[i], [brightness*red, 0, brightness*blue])
+
+    flatmap.show_map(image_file='bar.png')
+    flatmap.draw_boundary('VISp')
+    flatmap.draw_boundary('AUDp')
+    flatmap.draw_boundary('SSp-bfd')
+    plt.savefig('foo.png')
+    plt.show()
 
