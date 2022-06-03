@@ -214,13 +214,13 @@ if __name__ == '__main__':
     # mix = GaussianMixture2D([g1, g2])
     # print(mix.approx())
 
-    area = 'VISp'
+    area = 'SSp-n'
 
-    # gaussians, positions_3d = get_primary_gaussians(area)
-    # propagated = propagate_gaussians_through_isocortex(gaussians, positions_3d)
-    #
-    # with open('propagated {}'.format(area), 'wb') as file:
-    #     pickle.dump(propagated, file)
+    gaussians, positions_3d = get_primary_gaussians(area)
+    propagated = propagate_gaussians_through_isocortex(gaussians, positions_3d)
+
+    with open('propagated {}'.format(area), 'wb') as file:
+        pickle.dump(propagated, file)
 
     with open('propagated {}'.format(area), 'rb') as file:
         propagated = pickle.load(file)
@@ -248,6 +248,6 @@ if __name__ == '__main__':
     flatmap.draw_boundary('VISp')
     flatmap.draw_boundary('AUDp')
     flatmap.draw_boundary('SSp-bfd')
-    plt.savefig('foo.png')
+    plt.savefig('{}-ml.png'.format(area))
     plt.show()
 
