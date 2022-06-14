@@ -1,6 +1,8 @@
 import pickle
 import numpy as np
 import seaborn as sns
+import matplotlib
+import matplotlib.cm as cmx
 import matplotlib.pyplot as plt
 from deepmouse.maps.util import get_voxel_model_cache, get_default_structure_tree
 from deepmouse.geodesic_flatmap import GeodesicFlatmap
@@ -12,9 +14,9 @@ cache = get_voxel_model_cache()
 structure_tree = get_default_structure_tree()
 
 source_areas = ['VISp', 'AUDp', 'SSp-bfd', 'SSP-ul', 'SSp-m']
-test_areas = ['VISp', 'VISal', 'VISam', 'VISl', 'VISpl', 'VISpm', 'VISli', 'VISpor', 'VISa', 'VISrl']
+# test_areas = ['VISp', 'VISal', 'VISam', 'VISl', 'VISpl', 'VISpm', 'VISli', 'VISpor', 'VISa', 'VISrl']
 # test_areas = ['SSs', 'AUDd', 'AUDpo', 'AUDv', 'MOp', 'MOs', 'RSP', 'TEa', 'ACAd', 'ACAv']
-# test_areas = ['VISpor']
+test_areas = ['RSP']
 
 propagated = []
 for sa in source_areas:
@@ -23,35 +25,69 @@ for sa in source_areas:
 
 flatmap = GeodesicFlatmap()
 
+
+def plot_detail(ml_coordinates, ap_coordinates, multisensory_weights, p):
+    norm_weights = multisensory_weights / max(multisensory_weights.flatten())
+
+    fig = plt.figure(figsize=(11,5), constrained_layout=True)
+    norm = matplotlib.colors.Normalize(vmin=-2, vmax=2)
+    scalar_map = cmx.ScalarMappable(norm=norm, cmap=plt.get_cmap('jet'))
+
+    def scatter(coords, weights):
+        ax.scatter(p[:,0], p[:,1], p[:,2],
+                   marker='.',
+                   c=scalar_map.to_rgba(coords),
+                   alpha=weights)
+
+    for i in range(5):
+        ax = fig.add_subplot(2, 5, i+1, projection='3d')
+        plt.title(source_areas[i])
+        scatter(ml_coordinates[i,:], norm_weights[i,:])
+
+        ax = fig.add_subplot(2, 5, i+6, projection='3d')
+        scatter(ap_coordinates[i,:], norm_weights[i,:])
+
+    plt.tight_layout()
+    plt.show()
+
+
 singular_values = []
 for test_area in test_areas:
     positions_3d = get_positions(cache, test_area)
     indices = [flatmap.get_voxel_index(p) for p in positions_3d]
 
-    multisensory_coordinates = np.zeros((2*len(source_areas), len(indices)))
+    ml_coordinates = np.zeros((len(source_areas), len(indices)))
+    ap_coordinates = np.zeros((len(source_areas), len(indices)))
+    multisensory_weights = np.zeros((len(source_areas), len(indices)))
     for i, index in enumerate(indices):
-        voxel_coords = []
-        for p in propagated:
+        for j, p in enumerate(propagated):
             m = p[index].mean
             if len(m) > 1: # fix this in topography
-                voxel_coords.extend([0, 0])
+                ml_coordinates[j,i] = 0
+                ap_coordinates[j,i] = 0
             else:
-                voxel_coords.extend(m[0])
-        multisensory_coordinates[:,i] = voxel_coords
+                ml_coordinates[j,i] = m[0][0]
+                ap_coordinates[j,i] = m[0][1]
+            multisensory_weights[j,i] = p[index].weight
 
-    u, s, vh = np.linalg.svd(multisensory_coordinates)
+    plot_detail(ml_coordinates, ap_coordinates, multisensory_weights, positions_3d)
+
+    scaled_ml_coordinates = np.multiply(ml_coordinates, multisensory_weights)
+    scaled_ap_coordinates = np.multiply(ap_coordinates, multisensory_weights)
+    scaled_coordinates = np.concatenate((scaled_ml_coordinates, scaled_ap_coordinates), axis=0)
+    u, s, vh = np.linalg.svd(scaled_coordinates)
     print(s)
     singular_values.append(s)
 
 singular_values = np.array(singular_values)
 cumulative_fraction = np.cumsum(singular_values, axis=1).T / np.sum(singular_values, axis=1)
-# plt.plot(singular_values.T)
 plt.plot(range(1, len(cumulative_fraction)+1), cumulative_fraction)
 plt.xlabel('Singular value')
 plt.ylabel('Cumulative fraction')
+plt.ylim([0, 1])
 plt.legend(test_areas)
 plt.tight_layout()
-plt.savefig('singular-values.png')
+# plt.savefig('singular-values.png')
 plt.show()
 
 # R = np.corrcoef(multisensory_coordinates)
