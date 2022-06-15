@@ -27,8 +27,6 @@ class NormalizedFlatmap:
         centre = np.mean(positions_2d, axis=0)
         squared_distances = np.sum((positions_2d - centre)**2, axis=1)
         sd = (np.sum(squared_distances)/len(positions_2d))**.5
-        print(centre)
-        print(sd)
 
         rel_positions = positions_2d - centre
         self.positions_2d = rel_positions / sd
@@ -42,39 +40,6 @@ class NormalizedFlatmap:
         if len(index) == 0:
             raise Exception('Unknown voxel: {}'.format(position_3d))
         return self.positions_2d[index]
-
-
-# def set_voxel_colour(self, voxel_position, rgb):
-#     ind = np.where((self.voxel_positions == voxel_position).all(axis=1))[0]
-#     if len(ind) == 0:
-#         raise Exception('Unknown voxel: {}'.format(voxel_position))
-
-
-# # area = 'VISp'
-# # area = 'AUDp'
-# # area = 'PIR'
-# # area = 'SSp-bfd'
-# # area = 'SSp-m'
-# # area = 'SSp-n'
-# area = 'SSp-ul'
-# flatmap = FlatMap(area=area)
-# flatmap._fit()
-# positions_2d = flatmap.positions_2d.T
-#
-# centre = np.mean(positions_2d, axis=0)
-# squared_distances = np.sum((positions_2d - centre)**2, axis=1)
-# sd = (np.sum(squared_distances)/len(positions_2d))**.5
-# print(centre)
-# print(sd)
-#
-# rel_positions = positions_2d - centre
-# rel_positions = rel_positions / sd
-#
-# import matplotlib.pyplot as plt
-# plt.scatter(rel_positions[:,0], rel_positions[:,1])
-# # plt.scatter(positions_2d[:,0], positions_2d[:,1])
-# plt.axis('equal')
-# plt.show()
 
 
 class Gaussian2D:
@@ -98,6 +63,9 @@ class GaussianMixture2D:
         self.gaussians.append(gaussian)
 
     def approx(self):
+        """
+        :return: Gaussian2D with same mean and covariance as the mixture.
+        """
         weight_sum = 0
         weighted_sum_means = np.zeros(2)
         covariance = np.zeros((2,2))
@@ -120,7 +88,7 @@ def get_primary_gaussians(area):
     gaussians = []
     for position_3d in positions_3d:
         mean = flatmap.get_position(position_3d)
-        covariance = [[.1, 0], [0, .1]] #TODO: estimate from literature
+        covariance = [[0, 0], [0, 0]] # primary voxels have no spread in primary voxel space
         gaussians.append(Gaussian2D(1, mean, covariance))
 
     return gaussians, positions_3d
@@ -173,9 +141,8 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
     right_target_cortex_indices = target_cortex_indices[r]
 
     cortex_weights = weights[source_cortex_indices,:]
-    # cortex_nodes = nodes[:,right_target_cortex_indices]
-
     positions_all = get_positions(cache, 'Isocortex')  # these are in source order
+
     def get_source_index(position_3d):
         ind = np.where((positions_all == position_3d).all(axis=1))[0]
         if len(ind) == 0:
@@ -185,7 +152,6 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
     indices = [get_source_index(p) for p in positions_3d]
 
     def get_mixture_for_target_voxel(target_index):
-        # target_weights = np.dot(cortex_nodes[:,target_index].T, cortex_weights.T)
         target_weights = np.dot(nodes[:,target_index].T, cortex_weights.T)
         inclusion_threshold = 0.01 * np.max(target_weights)
         mixture = GaussianMixture2D()
@@ -214,21 +180,26 @@ if __name__ == '__main__':
     # mix = GaussianMixture2D([g1, g2])
     # print(mix.approx())
 
+    # # area = 'VISp'
+    # # area = 'AUDp'
+    # # area = 'PIR'
+    # # area = 'SSp-bfd'
+    # # area = 'SSp-m'
+    # # area = 'SSp-n'
+    # area = 'SSp-ul'
     area = 'SSp-n'
 
     gaussians, positions_3d = get_primary_gaussians(area)
     propagated = propagate_gaussians_through_isocortex(gaussians, positions_3d)
 
-    with open('propagated {}'.format(area), 'wb') as file:
+    with open('generated/propagated {}'.format(area), 'wb') as file:
         pickle.dump(propagated, file)
 
-    with open('propagated {}'.format(area), 'rb') as file:
+    with open('generated/propagated {}'.format(area), 'rb') as file:
         propagated = pickle.load(file)
-    print(len(propagated))
 
-    from deepmouse.geodesic_flatmap import GeodesicFlatmap, concave_hull
+    from deepmouse.geodesic_flatmap import GeodesicFlatmap
     flatmap = GeodesicFlatmap()
-    print(len(flatmap.voxel_positions))
 
     weights = [gaussian.weight for gaussian in propagated]
     max_weight = np.max(weights)
@@ -244,11 +215,11 @@ if __name__ == '__main__':
             brightness = (gaussian.weight / max_weight) ** (1/4)
             flatmap.set_voxel_colour(flatmap.voxel_positions[i], [brightness*red, 0, brightness*blue])
 
-    flatmap.show_map(image_file='bar.png')
+    flatmap.show_map(image_file='generated/bar.png')
     flatmap.draw_boundary('VISp')
     flatmap.draw_boundary('AUDp')
     flatmap.draw_boundary('SSp-bfd')
-    plt.savefig('{}-ml.png'.format(area))
+    plt.savefig('generated/{}-ml.png'.format(area))
     plt.show()
 
 
