@@ -13,14 +13,15 @@ from deepmouse.topography import Gaussian2D
 cache = get_voxel_model_cache()
 structure_tree = get_default_structure_tree()
 
-source_areas = ['VISp', 'AUDp', 'SSp-bfd', 'SSP-ul', 'SSp-m']
+source_areas = ['SSp-n']
+# source_areas = ['VISp', 'AUDp', 'SSp-bfd', 'SSP-ul', 'SSp-m']
 # test_areas = ['VISp', 'VISal', 'VISam', 'VISl', 'VISpl', 'VISpm', 'VISli', 'VISpor', 'VISa', 'VISrl']
 # test_areas = ['SSs', 'AUDd', 'AUDpo', 'AUDv', 'MOp', 'MOs', 'RSP', 'TEa', 'ACAd', 'ACAv']
 test_areas = ['RSP']
 
 propagated = []
 for sa in source_areas:
-    with open('propagated {}'.format(sa), 'rb') as file:
+    with open('generated/propagated {}'.format(sa), 'rb') as file:
         propagated.append(pickle.load(file))
 
 flatmap = GeodesicFlatmap()
@@ -62,15 +63,11 @@ for test_area in test_areas:
     for i, index in enumerate(indices):
         for j, p in enumerate(propagated):
             m = p[index].mean
-            if len(m) > 1: # fix this in topography
-                ml_coordinates[j,i] = 0
-                ap_coordinates[j,i] = 0
-            else:
-                ml_coordinates[j,i] = m[0][0]
-                ap_coordinates[j,i] = m[0][1]
+            ml_coordinates[j,i] = m[0]
+            ap_coordinates[j,i] = m[1]
             multisensory_weights[j,i] = p[index].weight
 
-    plot_detail(ml_coordinates, ap_coordinates, multisensory_weights, positions_3d)
+    # plot_detail(ml_coordinates, ap_coordinates, multisensory_weights, positions_3d)
 
     scaled_ml_coordinates = np.multiply(ml_coordinates, multisensory_weights)
     scaled_ap_coordinates = np.multiply(ap_coordinates, multisensory_weights)

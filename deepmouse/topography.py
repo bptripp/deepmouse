@@ -73,11 +73,16 @@ class GaussianMixture2D:
         for g in self.gaussians:
             weight_sum = weight_sum + g.weight
             weighted_sum_means = weighted_sum_means + g.weight * g.mean
-        mean = weighted_sum_means / weight_sum
 
-        for g in self.gaussians:
-            between = np.outer(g.mean - mean, g.mean - mean)
-            covariance = covariance + g.weight/weight_sum*(between + g.covariance)
+        if weight_sum > 0:
+            mean = weighted_sum_means / weight_sum
+
+            for g in self.gaussians:
+                between = np.outer(g.mean - mean, g.mean - mean)
+                covariance = covariance + g.weight/weight_sum*(between + g.covariance)
+        else:
+            mean = [0, 0]
+            covariance = [[0, 0], [0, 0]]
 
         return Gaussian2D(weight_sum, mean, covariance)
 
@@ -87,7 +92,7 @@ def get_primary_gaussians(area):
     flatmap = NormalizedFlatmap(area)
     gaussians = []
     for position_3d in positions_3d:
-        mean = flatmap.get_position(position_3d)
+        mean = flatmap.get_position(position_3d).squeeze()
         covariance = [[0, 0], [0, 0]] # primary voxels have no spread in primary voxel space
         gaussians.append(Gaussian2D(1, mean, covariance))
 
@@ -147,7 +152,7 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
         ind = np.where((positions_all == position_3d).all(axis=1))[0]
         if len(ind) == 0:
             raise Exception('Unknown voxel: {}'.format(position_3d))
-        return ind
+        return ind[0]
 
     indices = [get_source_index(p) for p in positions_3d]
 
@@ -207,13 +212,12 @@ if __name__ == '__main__':
 
     # set voxel colours
     for i, gaussian in enumerate(propagated):
-        if len(gaussian.mean) < 2: # bug in gaussian, change this
-            x = gaussian.mean[0][0]
-            x = np.clip(x, -1.5, 1.5)
-            red = (x+1.5)/3
-            blue = 1-red
-            brightness = (gaussian.weight / max_weight) ** (1/4)
-            flatmap.set_voxel_colour(flatmap.voxel_positions[i], [brightness*red, 0, brightness*blue])
+        x = gaussian.mean[0] # mediolateral coordinate
+        x = np.clip(x, -1.5, 1.5)
+        red = (x+1.5)/3
+        blue = 1-red
+        brightness = (gaussian.weight / max_weight) ** (1/4)
+        flatmap.set_voxel_colour(flatmap.voxel_positions[i], [brightness*red, 0, brightness*blue])
 
     flatmap.show_map(image_file='generated/bar.png')
     flatmap.draw_boundary('VISp')
