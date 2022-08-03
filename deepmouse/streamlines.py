@@ -97,6 +97,7 @@ def get_acronyms_for_layer(target_layer):
 
     return layer_acronyms
 
+
 def get_positions_all():
     pass
 
@@ -324,7 +325,7 @@ def get_gradient(interpolator, position):
     return np.array([gx, gy, gz])
 
 
-def get_streamline(interpolator, origin, step_size=0.1):
+def get_streamline(interpolator, origin, step_size=0.1, to_surface=True):
     """
     TODO: need surface? edges outside cortex?
     Gradient descent to outside of cortex.
@@ -338,14 +339,18 @@ def get_streamline(interpolator, origin, step_size=0.1):
 
     streamline = [p]
     c = 0
-    while depth > 0.25: # unstable at the very edge
+    while (to_surface and depth > 0.25) or (not to_surface and depth < 6.75): # unstable at the very edges
         c = c + 1
         if c > 500:
             print('stuck')
             print(streamline)
             break
         g = get_gradient(interpolator, p)
-        step = - step_size * g / np.linalg.norm(g)
+        if to_surface:
+            direction = -1
+        else:
+            direction = 1
+        step = direction * step_size * g / np.linalg.norm(g)
         p = p + step
         streamline.append(p)
         depth = interpolator(p[0], p[1], p[2])
