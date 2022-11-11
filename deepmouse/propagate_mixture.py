@@ -225,7 +225,7 @@ def main():
                 -0.5 * np.square(dist / std_dev)
             )
 
-            return np.square(A * base)
+            return A * base
 
         min_std_dist = 3 # Number of standard deviations of distance that is considered in the weighting
         results_mixed = [] # List of propagated and mixed voxels for this area
@@ -247,13 +247,13 @@ def main():
                        
                 # If the distant voxel is within 3 standard devs (~290 microns) of the streamline, add it to the mixture
                 if dist * 100 <= min_std_dist * avg_std:
-                    weight = gaussian_weighting(dist)
+                    weight = gaussian_weighting(dist * 100)
                     gaussian.weight = weight
                     voxel_mixture.add(gaussian)
 
             # Find mixture approximation for the voxel and add it to the results list for this area
             results_mixed.append(voxel_mixture.approx())
-        
+
         # Dump propagated + mixed voxels for this area into a pickle file
         with open(f"propagated_and_mixed_{area}","wb") as file:
             pickle.dump(results_mixed, file)
