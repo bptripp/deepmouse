@@ -2,10 +2,14 @@ import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from deepmouse.maps.util import get_voxel_model_cache, get_default_structure_tree
-from deepmouse.maps.flatmap import FlatMap
-from deepmouse.geodesic_flatmap import GeodesicFlatmap
-from deepmouse.maps.map import right_target_indices, get_positions
+# from deepmouse.maps.util import get_voxel_model_cache, get_default_structure_tree
+# from deepmouse.maps.flatmap import FlatMap
+# from deepmouse.geodesic_flatmap import GeodesicFlatmap
+# from deepmouse.maps.map import right_target_indices, get_positions
+from maps.util import get_voxel_model_cache, get_default_structure_tree
+from maps.flatmap import FlatMap
+from geodesic_flatmap import GeodesicFlatmap
+from maps.map import right_target_indices, get_positions
 
 """
 This code assigns coordinates to each voxel of each primary sensory area based on its flatmap
@@ -89,6 +93,8 @@ class GaussianMixture2D:
 
 
 def get_primary_gaussians(area):
+    # print(area)
+    # exit()
     positions_3d = get_positions(cache, area)
     flatmap = NormalizedFlatmap(area)
     gaussians = []
@@ -100,9 +106,11 @@ def get_primary_gaussians(area):
     return gaussians, positions_3d
 
 
-def load_weights(data_folder='data_files/'):
-    weight_file = data_folder + '/voxel-weights.pkl'
-    node_file = data_folder + '/voxel-nodes.pkl'
+def load_weights(data_folder='data_files'):
+    # weight_file = data_folder + '/voxel-weights.pkl'
+    # node_file = data_folder + '/voxel-nodes.pkl'
+    weight_file = os.path.join(data_folder,"voxel-weights.pkl")
+    node_file = os.path.join(data_folder,"voxel-nodes.pkl")
     if os.path.isfile(weight_file) and os.path.isfile(node_file):
         with open(weight_file, 'rb') as file:
             weights = pickle.load(file)
@@ -146,6 +154,7 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
     :param positions_3d: 3d positions of these voxels
     :return: Gaussian models of input to every target voxel in right isocortex
     """
+    print('Loading weights and nodes')
     weights, nodes = load_weights(data_folder)
     cortex_id = structure_tree.get_id_acronym_map()['Isocortex']
 
@@ -172,6 +181,8 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
     target_cortex_indices = np.array(target_cortex_indices)
     r = right_target_indices(cache)
     right_target_cortex_indices = target_cortex_indices[r]
+
+    # print(get_positions(cache,"root").shape,get_positions(cache,"root",True).shape)
 
     cortex_weights = weights[source_cortex_indices,:]
     cortex_positions = get_positions(cache, 'Isocortex')  # these are in source order
@@ -209,6 +220,8 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
         # print('{} of {} th: {}'.format(len(mixture.gaussians), len(gaussians), inclusion_threshold))
         return mixture
 
+    # right_target_cortex_indices = right_target_cortex_indices[:200]
+
     result = []
     for i, target_index in enumerate(right_target_cortex_indices):
         if i % 100 == 0:
@@ -217,8 +230,10 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
         mixture = get_mixture_for_target_voxel(target_index)
 
         result.append(mixture.approx())
-    return result
 
+    target_positions = get_positions(cache,"root",True)[right_target_cortex_indices]
+
+    return result, target_positions
 
 def plot_flatmap(propagated, mediolateral=True):
     flatmap = GeodesicFlatmap()
@@ -248,8 +263,11 @@ def plot_flatmap(propagated, mediolateral=True):
 if __name__ == '__main__':
     # g1 = Gaussian2D(1, [2, 0], [[4, 1], [1, 4]])
     # g2 = Gaussian2D(1, [0, 0], [[4, 1], [1, 4]])
-    # mix = GaussianMixture2D([g1, g2])
-    # print(mix.approx())
+    # mix = GaussianMixture2D()
+    # mix.add(g1)
+    # mix.add(g2)
+    # print(mix.approx().to_vector())
+    # exit()
 
     # weights, nodes = load_weights()
     # weights, nodes = remove_experiment(weights, nodes, 1)
@@ -268,8 +286,12 @@ if __name__ == '__main__':
         gaussians, positions_3d = get_primary_gaussians(area)
         propagated = propagate_gaussians_through_isocortex(gaussians, positions_3d, omit_experiment_rank=omit_experiment_rank)
 
-        with open('generated/propagated {} omit {}'.format(area, omit_experiment_rank), 'wb') as file:
-            pickle.dump(propagated, file)
+        # 1. Get propagated to return 3d positions as well
+        # 2. With a radius of 100 microns, add all pixels to a gaussian mixture
+        # 3. Figure out what to do with this mixture
+
+        # with open('generated/propagated {} omit {}'.format(area, omit_experiment_rank), 'wb') as file:
+        #     pickle.dump(propagated, file)
 
         # with open('generated/propagated {} omit {}'.format(area, omit_experiment_rank), 'rb') as file:
         #     propagated = pickle.load(file)

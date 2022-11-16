@@ -16,9 +16,12 @@ from scipy.spatial import Delaunay
 import trimesh
 # import open3d
 from mcmodels.core import VoxelModelCache
-from deepmouse.maps.map import get_positions
-from deepmouse.maps.util import get_child_ids, get_default_structure_tree, print_descriptions
-from deepmouse.maps.util import get_name, get_acronym, get_id
+# from deepmouse.maps.map import get_positions
+# from deepmouse.maps.util import get_child_ids, get_default_structure_tree, print_descriptions
+# from deepmouse.maps.util import get_name, get_acronym, get_id
+from maps.map import get_positions
+from maps.util import get_child_ids, get_default_structure_tree, print_descriptions
+from maps.util import get_name, get_acronym, get_id
 
 cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
 structure_tree = get_default_structure_tree()
@@ -318,9 +321,16 @@ def get_gradient(interpolator, position):
     d = .1 # fraction voxel to move for finite difference
 
     px, py, pz = position[0], position[1], position[2]
-    gx = (interpolator(px + d, py, pz) - interpolator(px - d, py, pz)) / (2*d)
+    
+    if px + d > interpolator.boundaries[-1]:
+        gx = (interpolator(px, py, pz) - interpolator(px - d, py, pz)) / d
+    elif px - d < interpolator.boundaries[0]:
+        gx = (interpolator(px + d, py, pz) - interpolator(px, py, pz)) / d
+    else:
+        gx = (interpolator(px + d, py, pz) - interpolator(px - d, py, pz)) / (2*d)
     gy = (interpolator(px, py + d, pz) - interpolator(px, py - d, pz)) / (2*d)
     gz = (interpolator(px, py, pz + d) - interpolator(px, py, pz - d)) / (2*d)
+
 
     return np.array([gx, gy, gz])
 

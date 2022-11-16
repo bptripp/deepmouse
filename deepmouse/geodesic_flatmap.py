@@ -4,9 +4,12 @@ import pickle
 import matplotlib.pyplot as plt
 import gdist
 from shapely.geometry import Polygon, Point
-from deepmouse.maps.map import right_target_indices
-from deepmouse.maps.util import ResultCache
-from deepmouse.maps.util import get_voxel_model_cache, get_positions, get_id, get_default_structure_tree
+# from deepmouse.maps.map import right_target_indices
+# from deepmouse.maps.util import ResultCache
+# from deepmouse.maps.util import get_voxel_model_cache, get_positions, get_id, get_default_structure_tree
+from maps.map import right_target_indices
+from maps.util import ResultCache
+from maps.util import get_voxel_model_cache, get_positions, get_id, get_default_structure_tree
 
 
 cache = get_voxel_model_cache()
