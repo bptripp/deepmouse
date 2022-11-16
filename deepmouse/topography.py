@@ -220,8 +220,6 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
         # print('{} of {} th: {}'.format(len(mixture.gaussians), len(gaussians), inclusion_threshold))
         return mixture
 
-    # right_target_cortex_indices = right_target_cortex_indices[:200]
-
     result = []
     for i, target_index in enumerate(right_target_cortex_indices):
         if i % 100 == 0:
@@ -284,7 +282,7 @@ if __name__ == '__main__':
     # areas = ['VISp', 'AUDp', 'SSp-bfd', 'SSp-m', 'SSp-ul', 'SSp-n']
     for area in areas:
         gaussians, positions_3d = get_primary_gaussians(area)
-        propagated = propagate_gaussians_through_isocortex(gaussians, positions_3d, omit_experiment_rank=omit_experiment_rank)
+        propagated, _ = propagate_gaussians_through_isocortex(gaussians, positions_3d, omit_experiment_rank=omit_experiment_rank)
 
         # 1. Get propagated to return 3d positions as well
         # 2. With a radius of 100 microns, add all pixels to a gaussian mixture
