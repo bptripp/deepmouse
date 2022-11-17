@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument("--prop_dir","-p",default=None) # Directory containing ONLY pickle files of propagated Gaussians
 
     # If propagated Gaussians must be generated first, pass in a list of cortical areas
-    parser.add_argument("--areas_list","-a",default=None, nargs="+") # List of source cortical areas
+    parser.add_argument("--areas_list","-a",default=None, nargs="+") # List of source cortical areas (e.g. -a VISp AUDp SSp-n)
     args = parser.parse_args()
     assert bool(args.prop_dir) != bool(args.areas_list) # Assert that only one of prop_dir and areas_list has been passed
 
@@ -59,7 +59,19 @@ def mix_in_column(
 
         streamline = surface_to_surface_streamline(ci,voxel) # Streamline for voxel
         voxel_mixture = GaussianMixture2D() # Instantiate Mixture object
-        
+
+        ### NEW FUNCTION SHOULD BE CALLED HERE ###
+        # Function should accept current voxel (voxel) and target_positions
+        # and output a list of indices of voxels in target_positions that belong to the
+        # same source area as the current voxel
+
+        # Essentially as below
+        # area_indices = KinjalFunction(voxel,target_positions)
+
+        # target_positions_same_area = target_positions[area_indices]
+        # propagated_same_area = propagated[area_indices]
+        # assert len(target_positions_same_area) == len(propagated_same_area)
+
         # Find shortest distance between each propagated voxel and the streamline
         dists = shortest_distance(target_positions,streamline)
 
