@@ -6,10 +6,10 @@ from deepmouse.maps.util import get_default_structure_tree
 from deepmouse.maps.map import get_positions
 from deepmouse.streamlines import get_streamline, CompositeInterpolator
 
-cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
+cache = VoxelModelCache(manifest_file="connectivity/voxel_model_manifest.json")
 structure_tree = get_default_structure_tree()
 
-with open('interpolator.pkl', 'rb') as file:
+with open("interpolator.pkl", "rb") as file:
     ci = pickle.load(file)
 
 
@@ -35,7 +35,7 @@ s_both = surface_to_surface_streamline(ci, position)
 # plt.plot(s_both[:,0], s_both[:,2], 'k.')
 # plt.show()
 
-positions_all = get_positions(cache, 'Isocortex') # these are in source order
+positions_all = get_positions(cache, "Isocortex")  # these are in source order
 
 
 def line_segment_distances(points, a, b):
@@ -58,15 +58,16 @@ def shortest_distance(positions, streamline):
         b = streamline[start_index + len, :]
         return line_segment_distances(positions, a, b)
 
-    for i in range(0, streamline.shape[0]-2, 2):
+    for i in range(0, streamline.shape[0] - 2, 2):
         distances = distances_from_segment(i, 2)
         result = np.minimum(result, distances)
 
     # check end too in case last segment is one from end
-    distances = distances_from_segment(streamline.shape[0]-3, 2)
+    distances = distances_from_segment(streamline.shape[0] - 3, 2)
     result = np.minimum(result, distances)
 
     return result
+
 
 # import time
 # start = time.time()
@@ -88,7 +89,7 @@ test_voxel = [69, 10, 61]
 ind, dist = laterally_close(test_voxel)
 
 fig = plt.figure()
-ax = fig.add_subplot(projection='3d')
-ax.scatter(positions_all[ind,0], positions_all[ind,1], positions_all[ind,2], c=dist)
-ax.scatter(test_voxel[0], test_voxel[1], test_voxel[2], marker='x', s=80)
+ax = fig.add_subplot(projection="3d")
+ax.scatter(positions_all[ind, 0], positions_all[ind, 1], positions_all[ind, 2], c=dist)
+ax.scatter(test_voxel[0], test_voxel[1], test_voxel[2], marker="x", s=80)
 plt.show()
