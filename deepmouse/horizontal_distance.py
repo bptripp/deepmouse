@@ -47,11 +47,11 @@ def laterally_close(position, cutoff=4):
     close_distances = shortest[close_indices]
     return close_indices, close_distances
 
-cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
-structure_tree = get_default_structure_tree()
+# cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
+# structure_tree = get_default_structure_tree()
 
-with open('interpolator.pkl', 'rb') as file:
-    ci = pickle.load(file)
+# with open('interpolator.pkl', 'rb') as file:
+#     ci = pickle.load(file)
 
 
 def surface_to_surface_streamline(ci, position):
