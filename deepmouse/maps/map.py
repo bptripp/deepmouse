@@ -46,7 +46,10 @@ def get_positions(cache, area, target=False):
     """
 
     structure_tree = cache.get_structure_tree()
-    id = structure_tree.get_id_acronym_map()[area]
+    if type(area) == str:
+        id = structure_tree.get_id_acronym_map()[area]
+    else:
+        id = area
 
     def get_positions_for_mask(mask):
         keys = mask.get_key(structure_ids=None)
@@ -107,6 +110,29 @@ def right_target_indices(cache):
 
     return np.array(indices)
 
+
+def right_target_indices_area(cache, area):
+    """
+    :return: Indices of target voxels that correspond to source voxels (right hemisphere)
+    """
+    source_positions = get_positions(cache, area, target=False)
+    target_positions = get_positions(cache, area, target=True)
+
+    min_z = np.min(source_positions[:,2])
+    test_positions = []
+    indices = []
+    for i, t in enumerate(target_positions):
+        if t[2] >= min_z:
+            test_positions.append(t)
+            indices.append(i)
+    test_positions = np.array(test_positions)
+
+    diffs = np.linalg.norm(source_positions - test_positions, axis=1)
+
+    if np.max(diffs) > 0:
+        raise Exception('Source and right-hemisphere target voxel lists do not match')
+
+    return np.array(indices)
 
 class Morph:
     """
