@@ -55,6 +55,34 @@ def mix_in_column(
 
     results_mixed = [] # List of propagated and mixed voxels for this area
 
+    from find_voxel_cortical_area import get_target_cortex_keys, get_voxel_same_area_indices
+    target_cortex_keys = get_target_cortex_keys()
+
+    propagated = np.array(propagated)
+    # print(propagated.dtype)
+    # import matplotlib.pyplot as plt
+    # for i in [0,20600,41200,61800]:
+    #     voxel = target_positions[i]
+    #     print(voxel)
+    #     ###
+    #     streamline = surface_to_surface_streamline(ci,voxel) # Streamline for voxel
+    #     voxel_mixture = GaussianMixture2D() # Instantiate Mixture object
+    #     area_indices = get_voxel_same_area_indices(voxel,target_positions,target_cortex_keys).astype(np.int32)
+    #     assert area_indices[-1] < len(target_positions)
+    #     target_positions_sa = target_positions[area_indices]
+    #     propagated_sa = propagated[area_indices]
+    #     assert len(target_positions_sa) == len(propagated_sa)
+    #     dists = shortest_distance(target_positions_sa,streamline) * 100
+    #     ###
+    #     n_bins = 20
+    #     plt.figure()
+    #     plt.title(f"Histogram of distances surrounding voxel {voxel}")
+    #     plt.xlabel("Distance from streamline (in microns)")
+    #     plt.ylabel("No. of Instances")
+    #     plt.hist(dists,n_bins)
+    #     plt.savefig(f"voxel_hist_{voxel}.png")
+    # exit()
+
     for voxel in tqdm(target_positions):
 
         streamline = surface_to_surface_streamline(ci,voxel) # Streamline for voxel
@@ -67,16 +95,18 @@ def mix_in_column(
 
         # Essentially as below
         # area_indices = KinjalFunction(voxel,target_positions)
-
-        # target_positions_same_area = target_positions[area_indices]
-        # propagated_same_area = propagated[area_indices]
-        # assert len(target_positions_same_area) == len(propagated_same_area)
+        area_indices = get_voxel_same_area_indices(voxel,target_positions,target_cortex_keys).astype(np.int32)
+        assert area_indices[-1] < len(target_positions)
+        target_positions_sa = target_positions[area_indices]
+        propagated_sa = propagated[area_indices]
+        assert len(target_positions_sa) == len(propagated_sa)
 
         # Find shortest distance between each propagated voxel and the streamline
-        dists = shortest_distance(target_positions,streamline)
+        dists = shortest_distance(target_positions_sa,streamline)
+
 
         # Iterate through all of the other propagated voxels of this area
-        for gaussian, dist in zip(propagated, dists):
+        for gaussian, dist in zip(propagated_sa, dists):
             
             dist *= 100 # Convert dist from voxel units to microns
 

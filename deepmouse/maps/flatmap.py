@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import least_squares
 from mcmodels.core import VoxelModelCache
-from deepmouse.maps.util import get_id, get_default_structure_tree
-
+# from deepmouse.maps.util import get_id, get_default_structure_tree
+from maps.util import get_id, get_default_structure_tree
 
 def get_angles(offset):
     """
