@@ -179,7 +179,7 @@ def main():
             # Dump propagated + mixed vowels for this area into a pickle file
             with open(
                 # os.path.join("propagated",f"propagated_and_mixed_{area}.pkl"),
-                "propagated_and_mixed_{area}.pkl",
+                f"propagated_and_mixed_{area}.pkl",
                 "wb"
             ) as file:
                 pickle.dump(propagated_mixed, file)
