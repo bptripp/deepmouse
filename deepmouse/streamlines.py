@@ -376,6 +376,14 @@ def get_streamline(interpolator, origin, step_size=0.1, to_surface=True):
         else:
             direction = 1
         step = direction * step_size * g / np.linalg.norm(g)
+        
+        # Deal with boundary conditions
+        if p[0] + step[0] > interpolator.boundaries[-1] or p[0] + step[0] < interpolator.boundaries[0]:
+            step = step * (interpolator.boundaries[-1]-p[0])/step[0]
+            p = p + step
+            streamline.append(p)
+            return np.array(streamline)
+        
         p = p + step
         streamline.append(p)
         depth = interpolator(p[0], p[1], p[2])

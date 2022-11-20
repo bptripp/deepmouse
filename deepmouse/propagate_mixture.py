@@ -61,31 +61,26 @@ def mix_in_column(
     propagated = np.array(propagated)
     # print(propagated.dtype)
     # import matplotlib.pyplot as plt
-    # for i in [0,20600,41200,61800]:
-    #     voxel = target_positions[i]
-    #     print(voxel)
-    #     ###
+    # test = []
+    # for i, voxel in enumerate(target_positions):
     #     streamline = surface_to_surface_streamline(ci,voxel) # Streamline for voxel
-    #     voxel_mixture = GaussianMixture2D() # Instantiate Mixture object
-    #     area_indices = get_voxel_same_area_indices(voxel,target_positions,target_cortex_keys).astype(np.int32)
-    #     assert area_indices[-1] < len(target_positions)
-    #     target_positions_sa = target_positions[area_indices]
-    #     propagated_sa = propagated[area_indices]
-    #     assert len(target_positions_sa) == len(propagated_sa)
-    #     dists = shortest_distance(target_positions_sa,streamline) * 100
-    #     ###
-    #     n_bins = 20
-    #     plt.figure()
-    #     plt.title(f"Histogram of distances surrounding voxel {voxel}")
-    #     plt.xlabel("Distance from streamline (in microns)")
-    #     plt.ylabel("No. of Instances")
-    #     plt.hist(dists,n_bins)
-    #     plt.savefig(f"voxel_hist_{voxel}.png")
-    # exit()
+
+        # dists = shortest_distance(target_positions_sa,streamline) * 100
+        # print(dists)
+        # exit()
+        # ###
+        # n_bins = 20
+        # plt.figure()
+        # plt.title(f"Histogram of distances surrounding voxel {voxel}")
+        # plt.xlabel("Distance from streamline (in microns)")
+        # plt.ylabel("No. of Instances")
+        # plt.hist(dists,n_bins)
+        # plt.savefig(f"voxel_hist_{voxel}.png")
 
     for voxel in tqdm(target_positions):
 
         streamline = surface_to_surface_streamline(ci,voxel) # Streamline for voxel
+        
         voxel_mixture = GaussianMixture2D() # Instantiate Mixture object
 
         ### NEW FUNCTION SHOULD BE CALLED HERE ###
@@ -93,8 +88,6 @@ def mix_in_column(
         # and output a list of indices of voxels in target_positions that belong to the
         # same source area as the current voxel
 
-        # Essentially as below
-        # area_indices = KinjalFunction(voxel,target_positions)
         area_indices = get_voxel_same_area_indices(voxel,target_positions,target_cortex_keys).astype(np.int32)
         assert area_indices[-1] < len(target_positions)
         target_positions_sa = target_positions[area_indices]
@@ -103,7 +96,6 @@ def mix_in_column(
 
         # Find shortest distance between each propagated voxel and the streamline
         dists = shortest_distance(target_positions_sa,streamline)
-
 
         # Iterate through all of the other propagated voxels of this area
         for gaussian, dist in zip(propagated_sa, dists):
@@ -163,7 +155,7 @@ def main():
 
             # Dump propagated + mixed voxels for this area into a pickle file
             with open(
-                os.path.join(args.prop_dir,f"{prop_fname}_mixed.pkl"),
+                "{prop_fname}_mixed.pkl",
                 "wb"
             ) as file:
                 pickle.dump(propagated_mixed, file)
@@ -186,7 +178,8 @@ def main():
 
             # Dump propagated + mixed vowels for this area into a pickle file
             with open(
-                os.path.join("propagated",f"propagated_and_mixed_{area}.pkl"),
+                # os.path.join("propagated",f"propagated_and_mixed_{area}.pkl"),
+                "propagated_and_mixed_{area}.pkl",
                 "wb"
             ) as file:
                 pickle.dump(propagated_mixed, file)
