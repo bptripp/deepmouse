@@ -143,6 +143,7 @@ def main():
         target_positions = get_positions(cache,"root",True)[right_target_cortex_indices]
 
         for prop_fname in os.listdir(args.prop_dir):
+            print(f"Loading {prop_fname}")
             pickle_file = open(os.path.join(args.prop_dir,prop_fname),"rb")
             propagated = pickle.load(pickle_file)
             pickle_file.close()
@@ -155,7 +156,7 @@ def main():
 
             # Dump propagated + mixed voxels for this area into a pickle file
             with open(
-                "{prop_fname}_mixed.pkl",
+                f"propagated_and_mixed_{area}.pkl",
                 "wb"
             ) as file:
                 pickle.dump(propagated_mixed, file)
