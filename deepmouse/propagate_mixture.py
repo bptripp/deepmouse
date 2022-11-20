@@ -116,7 +116,7 @@ def mix_in_column(
 def main():
     # Parse command-line arguments
     args = parse_args()
-    
+
     # Instantiate voxel model cache and structure tree
     cache = get_voxel_model_cache()
     structure_tree = get_default_structure_tree()
@@ -127,7 +127,7 @@ def main():
 
     # If a directory with propagated Gaussians in pickle files already exists, just load them and mix
     if args.prop_dir:
-
+        print(f"Loading propagated files from directory '{args.prop_dir}'")
         cortex_id = structure_tree.get_id_acronym_map()['Isocortex']
         target_mask = cache.get_target_mask()
         target_keys = target_mask.get_key(structure_ids=None)
