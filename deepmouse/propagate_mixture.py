@@ -156,7 +156,7 @@ def main():
 
             # Dump propagated + mixed voxels for this area into a pickle file
             with open(
-                f"propagated_and_mixed_{area}.pkl",
+                f"propagated_and_mixed_{prop_fname}.pkl",
                 "wb"
             ) as file:
                 pickle.dump(propagated_mixed, file)
