@@ -160,6 +160,14 @@ def main():
                 "wb"
             ) as file:
                 pickle.dump(propagated_mixed, file)
+                file.close()
+            
+            with open(
+                "JUST_IN_CASE.pkl",
+                "wb"
+            ) as file_backup:
+                pickle.dump(propagated_mixed,file_backup)
+                file_backup.close()
 
     # Otherwise, accept a list of areas, propagate them through the isocortex first and then mix them
     else:
