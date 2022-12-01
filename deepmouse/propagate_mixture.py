@@ -4,6 +4,7 @@ import pickle
 from tqdm import tqdm
 
 from argparse import ArgumentParser
+from find_voxel_cortical_area import get_target_cortex_keys, get_voxel_same_area_indices
 from horizontal_distance import shortest_distance, surface_to_surface_streamline
 from maps.util import get_voxel_model_cache, get_default_structure_tree
 from maps.map import right_target_indices, get_positions
@@ -25,6 +26,7 @@ def parse_args():
 
     return args
 
+# Assign a Gaussian-based weighting based on lateral distance to streamline
 def gaussian_weighting(
     dist,
     std_dev
@@ -37,10 +39,10 @@ def gaussian_weighting(
     return A * base
 
 def mix_in_column(
-    propagated, # List of Gaussians for target voxels in the right isocortex
+    propagated,       # List of Gaussians for target voxels in the right isocortex
     target_positions, # List of positions that correspond to each propagated Gaussian in "propagated"
-    ci, # CompositeInterpolator object
-    min_std_dist=3, # Number of standard deviations of distance that is considered in the weighting
+    ci,               # CompositeInterpolator object
+    min_std_dist=3,   # Number of standard deviations of distance that is considered in the weighting
 ):
 
     # Matrix of standard deviations of the interlaminar connections from the CNN Mousenet paper
@@ -55,27 +57,9 @@ def mix_in_column(
 
     results_mixed = [] # List of propagated and mixed voxels for this area
 
-    from find_voxel_cortical_area import get_target_cortex_keys, get_voxel_same_area_indices
     target_cortex_keys = get_target_cortex_keys()
 
     propagated = np.array(propagated)
-    # print(propagated.dtype)
-    # import matplotlib.pyplot as plt
-    # test = []
-    # for i, voxel in enumerate(target_positions):
-    #     streamline = surface_to_surface_streamline(ci,voxel) # Streamline for voxel
-
-        # dists = shortest_distance(target_positions_sa,streamline) * 100
-        # print(dists)
-        # exit()
-        # ###
-        # n_bins = 20
-        # plt.figure()
-        # plt.title(f"Histogram of distances surrounding voxel {voxel}")
-        # plt.xlabel("Distance from streamline (in microns)")
-        # plt.ylabel("No. of Instances")
-        # plt.hist(dists,n_bins)
-        # plt.savefig(f"voxel_hist_{voxel}.png")
 
     for voxel in tqdm(target_positions):
 
@@ -83,11 +67,7 @@ def mix_in_column(
         
         voxel_mixture = GaussianMixture2D() # Instantiate Mixture object
 
-        ### NEW FUNCTION SHOULD BE CALLED HERE ###
-        # Function should accept current voxel (voxel) and target_positions
-        # and output a list of indices of voxels in target_positions that belong to the
-        # same source area as the current voxel
-
+        # Get the target voxels within the same cortical area
         area_indices = get_voxel_same_area_indices(voxel,target_positions,target_cortex_keys).astype(np.int32)
         assert area_indices[-1] < len(target_positions)
         target_positions_sa = target_positions[area_indices]
@@ -128,6 +108,7 @@ def main():
     # If a directory with propagated Gaussians in pickle files already exists, just load them and mix
     if args.prop_dir:
         print(f"Loading propagated files from directory '{args.prop_dir}'")
+        # Find the target indices of the right isocortex
         cortex_id = structure_tree.get_id_acronym_map()['Isocortex']
         target_mask = cache.get_target_mask()
         target_keys = target_mask.get_key(structure_ids=None)
@@ -136,12 +117,13 @@ def main():
             if structure_tree.structure_descends_from(target_keys[i], cortex_id):
                 target_cortex_indices.append(i)
 
-        #right_target_cortex_indices will not be same as source_cortex_indices but positions in same order
+        # Find the target positions of the right isocortex
         target_cortex_indices = np.array(target_cortex_indices)
         r = right_target_indices(cache)
         right_target_cortex_indices = target_cortex_indices[r]
         target_positions = get_positions(cache,"root",True)[right_target_cortex_indices]
 
+        # Run mixing for each file of propagated Gaussians in the directory
         for prop_fname in os.listdir(args.prop_dir):
             print(f"Loading {prop_fname}")
             pickle_file = open(os.path.join(args.prop_dir,prop_fname),"rb")
