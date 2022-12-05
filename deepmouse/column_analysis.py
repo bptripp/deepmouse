@@ -83,6 +83,7 @@ def main():
 
         test_positions = positions_3d[indices]
 
+        n_voxels_in_columns = []
         dimensions = []
         count = 0
         for index, pos in tqdm(zip(indices,test_positions)):
@@ -118,7 +119,6 @@ def main():
                 axis=0
             )
 
-            n_voxels_in_column = ml_coordinates.shape[1]
             
             u, s, vh = np.linalg.svd(scaled_coordinates)
             s = s.reshape(1,-1)
@@ -133,6 +133,8 @@ def main():
                 np.mean(cumulative_var, axis=0),
                 np.arange(1, len(cumulative_var[0]) + 1)
             )
+            
+            n_voxels_in_columns.append(ml_coordinates.shape[1])
             dimensions.append(ev_interp)
 
         plt.figure()
