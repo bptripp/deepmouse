@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("--radius_multiplier","-r",default=1)
+    parser.add_argument("--radius_multiplier","-r",default=1,type=int)
     args = parser.parse_args()
 
     return args
@@ -42,7 +42,6 @@ def main():
 
     cache = get_voxel_model_cache()
     structure_tree = get_default_structure_tree()
-
 
     # CORRECT METHOD
     positions_3d = get_positions(cache,"Isocortex")
