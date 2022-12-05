@@ -146,8 +146,9 @@ def main():
             n_voxels_in_columns.append(ml_coordinates.shape[1])
             dimensions.append(ev_interp)
 
+        radius = round(avg_std*args.radius_multiplier,2)
         plt.figure()
-        plt.title(f"Dimensions of 97micron-radius columns in {test_area}")
+        plt.title(f"Dimensions of {radius}micron-radius columns in {test_area}")
         plt.xlabel("Dimensionality")
         plt.ylabel("# of instances")
         plt.hist(dimensions)
