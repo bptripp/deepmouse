@@ -133,7 +133,7 @@ def main():
                 np.mean(cumulative_var, axis=0),
                 np.arange(1, len(cumulative_var[0]) + 1)
             )
-            
+
             n_voxels_in_columns.append(ml_coordinates.shape[1])
             dimensions.append(ev_interp)
 
@@ -148,7 +148,7 @@ def main():
         plt.title(f"# of voxels in column vs. Dimensionality: {test_area}")
         plt.xlabel("# of voxels in column")
         plt.ylabel("Dimensionality")
-        plt.scatter(n_voxels_in_column,dimensions)
+        plt.scatter(n_voxels_in_columns,dimensions)
         plt.savefig(f"scatter_column_{test_area}.png")
 
 if __name__ == "__main__":
