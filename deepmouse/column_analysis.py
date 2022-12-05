@@ -3,7 +3,7 @@ import os
 import pickle
 from tqdm import tqdm
 
-# from argparse import ArgumentParser
+from argparse import ArgumentParser
 from maps.util import get_voxel_model_cache, get_default_structure_tree, get_id
 from maps.map import right_target_indices, get_positions
 from geodesic_flatmap import GeodesicFlatmap
@@ -14,7 +14,16 @@ from streamlines import CompositeInterpolator
 from topography import Gaussian2D
 import matplotlib.pyplot as plt
 
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument("--radius_multiplier","-r",default=1)
+    args = parser.parse_args()
+    assert bool(args.prop_dir) != bool(args.areas_list) # Assert that only one of prop_dir and areas_list has been passed
+
+    return args
+
 def main():
+    args = parse_args()
     source_areas = [
         "VISp",
         "AUDp",
@@ -85,8 +94,8 @@ def main():
 
         n_voxels_in_columns = []
         dimensions = []
-        count = 0
-        for index, pos in tqdm(zip(indices,test_positions)):
+
+        for pos in tqdm(test_positions):
             ml_coordinates = []
             ap_coordinates = []
             multisensory_weights = []
@@ -100,7 +109,7 @@ def main():
                 ms_w_p = []
                 for sub_index, dist in zip(indices,dists):
                     dist *= 100
-                    if dist <= avg_std:
+                    if dist <= args.radius_multiplier * avg_std:
                         m = p[sub_index].mean
                         ml_c_p.append(m[0])
                         ap_c_p.append(m[1])
