@@ -18,7 +18,6 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--radius_multiplier","-r",default=1)
     args = parser.parse_args()
-    assert bool(args.prop_dir) != bool(args.areas_list) # Assert that only one of prop_dir and areas_list has been passed
 
     return args
 
