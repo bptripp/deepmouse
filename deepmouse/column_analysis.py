@@ -61,15 +61,13 @@ def main():
     test_areas = ["ILA","MOp"]
     for test_area in test_areas:
     
-        # for test_area in test_areas:
+        print(f"Analyzing {test_area}...")
         cortex_id = structure_tree.get_id_acronym_map()[test_area]
         target_cortex_keys = get_target_cortex_keys()
         indices = []
         for i in range(len(target_cortex_keys)):
             if structure_tree.structure_descends_from(target_cortex_keys[i],cortex_id):
                 indices.append(i)
-        # print(target_positions[:10],positions_3d[:10])
-        # exit()
         
         propagated = []
         for sa in source_areas:
@@ -136,18 +134,7 @@ def main():
                 np.arange(1, len(cumulative_var[0]) + 1)
             )
             dimensions.append(ev_interp)
-            # print(ev_interp)
-            # dim = 1
-            # for var in cumulative_var[0]:
-            #     if var > 0.9:
-            #         dimensions.append(dim)
-            #     dim += 1
-            # print(dim)
-            # exit()
-            # if count == 5:
-            #     exit()
-            # print(count,cumulative_var,ev_interp)
-            # count += 1
+
         plt.figure()
         plt.title(f"Dimensions of 97micron-radius columns in {test_area}")
         plt.xlabel("Dimensionality")
