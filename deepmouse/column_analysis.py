@@ -120,6 +120,8 @@ def main():
                 axis=0
             )
 
+            n_voxels_in_column = ml_coordinates.shape[1]
+            
             u, s, vh = np.linalg.svd(scaled_coordinates)
             s = s.reshape(1,-1)
             explained_variance_ = (s**2)/((len(source_areas)*2)-1)
@@ -146,11 +148,19 @@ def main():
             #     exit()
             # print(count,cumulative_var,ev_interp)
             # count += 1
+        plt.figure()
         plt.title(f"Dimensions of 97micron-radius columns in {test_area}")
         plt.xlabel("Dimensionality")
         plt.ylabel("# of instances")
         plt.hist(dimensions)
-        plt.savefig("hist_column_{test_area}.png")
+        plt.savefig(f"hist_column_{test_area}.png")
+
+        plt.figure()
+        plt.title(f"# of voxels in column vs. Dimensionality: {test_area}")
+        plt.xlabel("# of voxels in column")
+        plt.ylabel("Dimensionality")
+        plt.scatter(n_voxels_in_column,dimensions)
+        plt.savefig(f"scatter_column_{test_area}.png")
 
 if __name__ == "__main__":
     main()
