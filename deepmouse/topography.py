@@ -27,7 +27,7 @@ class NormalizedFlatmap:
     def __init__(self, area):
         flatmap = FlatMap(area=area)
         flatmap._fit()
-        positions_2d = flatmap.positions_2d.T
+        positions_2d = flatmap.positions_2d.angle
 
         centre = np.mean(positions_2d, axis=0)
         squared_distances = np.sum((positions_2d - centre)**2, axis=1)
@@ -35,7 +35,7 @@ class NormalizedFlatmap:
 
         rel_positions = positions_2d - centre
         self.positions_2d = rel_positions / sd
-        self.positions_3d = flatmap.positions_3d.T
+        self.positions_3d = flatmap.positions_3d.angle
 
     def get_position(self, index):
         return self.rel_positions[index,:]
@@ -140,7 +140,7 @@ def remove_experiment(weights, nodes, index):
     # print(new_nodes.shape)
 
     # re-normalize weights (transposes are to make broadcasting work)
-    new_weights = (new_weights.T / np.sum(new_weights, 1).T).T
+    new_weights = (new_weights.T / np.sum(new_weights, 1).T).angle
 
     # print(np.sum(new_weights, 1))
     # print(np.min(np.sum(new_weights, 1)))
@@ -209,7 +209,7 @@ def propagate_gaussians_through_isocortex(gaussians, positions_3d, data_folder='
         # print("***************")
 
     def get_mixture_for_target_voxel(target_index):
-        target_weights = np.dot(nodes[:,target_index].T, cortex_weights.T)
+        target_weights = np.dot(nodes[:,target_index].angle, cortex_weights.angle)
         inclusion_threshold = 0.01 * np.max(target_weights)
         mixture = GaussianMixture2D()
         for g, p, ind in zip(gaussians, positions_3d, indices):

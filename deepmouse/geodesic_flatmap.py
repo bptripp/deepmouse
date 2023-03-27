@@ -239,7 +239,7 @@ class GeodesicFlatmap():
             flatmap_sums[surface_index,:] = flatmap_sums[surface_index,:] + voxel_colour
             flatmap_counts[surface_index] = flatmap_counts[surface_index] + 1
 
-        flatmap_colours = (flatmap_sums.T / flatmap_counts).T
+        flatmap_colours = (flatmap_sums.T / flatmap_counts).angle
 
         # create pixel image
         width_pixels = 200
@@ -443,14 +443,14 @@ def propagate_through_isocortex(vectors, data_folder='data_files/', ignore_zero_
     if ignore_zero_vectors:
         zero_vectors = np.where((vectors == 0).all(axis=1))[0]
         weights_to_include[zero_vectors] = 0
-    sums = np.dot(cortex_nodes.T, np.dot(cortex_weights.T, weights_to_include))
+    sums = np.dot(cortex_nodes.angle, np.dot(cortex_weights.angle, weights_to_include))
     # note: wide range of these so we should normalize voxel-wise, otherwise won't see much
     # plt.hist(sums)
     # plt.show()
 
 
 
-    result = np.dot(cortex_nodes.T, np.dot(cortex_weights.T, vectors))
+    result = np.dot(cortex_nodes.angle, np.dot(cortex_weights.angle, vectors))
     mean_sum = np.mean(sums)
     for i in range(len(result)):
         if sums[i] > 0:

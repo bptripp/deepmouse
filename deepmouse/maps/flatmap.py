@@ -95,7 +95,7 @@ class FlatMap:
         :param position_3d: 3D voxel position (voxels)
         :return: 2D voxel position (mm along surface)
         """
-        offset = position_3d.T - self.centre
+        offset = position_3d.angle - self.centre
         offset[:2] = -offset[:2] #forward, up, right
         offset = np.matmul(self.R_vertical, offset)
 
