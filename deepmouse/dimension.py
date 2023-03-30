@@ -3,7 +3,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib
 import matplotlib.cm as cmx
-
+from argparse import ArgumentParser
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.proj3d import proj_transform
 from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -14,16 +14,28 @@ from deepmouse.maps.map import get_positions
 from deepmouse.topography import Gaussian2D
 from matplotlib.text import Annotation
 
-regenerate_dim_svd = False
 generate_dimension_plot = True
 generate_cumulative_plot = True
-# "propagated" # "propagated_mixing" # "propagated_layer"
-data_path = "propagated_layer"
-prefix = ""  # "" # propagated_and_mixed_
-extension = ""  # "" # ".pkl"
-prop_path = "propagated"  # "propagated" # "propagated_mixing"
-prop_type = "single"  # "single" # "omit"
-granularity = "area"  # "area" # "layer"
+
+def parse_args():
+    parser = ArgumentParser()
+    # "propagated" # "propagated_mixing" # "propagated_layer"
+    parser.add_argument("--data_path", "-d", default="propagated", type=str,
+                        help="data path for where the generated pkl file is and plot storage")
+    parser.add_argument("--extension", "-e", default="", type=str,
+                        help="extension of the propagated file, '' or .pkl ")
+    parser.add_argument("--prop_path", "-p", default="propagated", type=str,
+                        help="path to where the propagated files are stored")
+    parser.add_argument("--prop_type", "-pt", default="single", type=str,
+                        help="type of propagation i.e. single or omit ")
+    parser.add_argument("--granularity", "-g", default="area", type=str,
+                        help="plot at area level or layer level")
+    parser.add_argument("--regen_pkl", "-r", default=False, action="store_true")
+    args = parser.parse_args()
+
+    return args
+
+
 cache = get_voxel_model_cache()
 structure_tree = get_default_structure_tree()
 
@@ -170,8 +182,7 @@ def plot_dimensions(positions_list, values, labels, dim_sizes, txt_labels, filen
         fig.colorbar(sctt, ax=ax, shrink=0.5, aspect=5)
         ax.view_init(azim=-83, elev=1)
         plt.tight_layout()
-        plt.savefig("{}/{}_dimension_{}_{}.png".format(data_path,
-                    filename, str(idx), label))
+        plt.savefig("{}/{}_dimension_{}_{}.png".format(data_path,filename, str(idx), label))
         plt.close()
 
 
@@ -195,7 +206,7 @@ def get_propagate_svalues(indices, propagated):
     return s
 
 
-def regen_reg_dim(indices):
+def regen_reg_dim(indices, extension):
     svalues = []
     for omit_experiment_rank in range(1):
         propagated = []
@@ -208,7 +219,7 @@ def regen_reg_dim(indices):
     return svalues
 
 
-def regen_reg_dim_omit(indices):
+def regen_reg_dim_omit(indices, extension):
     svalues = []
     for idx in tqdm(range(len(source_areas))):
         for omit_rank in tqdm(range(1, 4)):
@@ -225,15 +236,17 @@ def regen_reg_dim_omit(indices):
     return svalues
 
 
-def regen_dim_svd(test_areas):
+def regen_dim_svd(test_areas, data_path, prop_type, extension):
     for test_area in test_areas:
 
         singular_values[test_area] = {}
         positions_3d = get_positions(cache, test_area)
         indices = [flatmap.get_voxel_index(p) for p in positions_3d]
 
-        # svalues = regen_reg_dim(indices)
-        svalues = regen_reg_dim_omit(indices)
+        if prop_type == "single":
+            svalues = regen_reg_dim(indices, extension)
+        else:
+            svalues = regen_reg_dim_omit(indices, extension)
 
         explained_variance_ = (np.array(svalues) ** 2) / \
             ((len(source_areas) * 2) - 1)
@@ -256,12 +269,22 @@ def regen_dim_svd(test_areas):
 
 
 if __name__ == "__main__":
+
+    args = parse_args()
+    regenerate_dim_svd = args.regen_pkl
+    data_path = args.data_path
+    extension = args.extension
+    prop_path = args.prop_path
+    prop_type = args.prop_type
+    granularity = args.granularity
+
+
     test_areas = get_test_areas()
     if granularity == "layer":
         test_areas = get_cortical_layer_areas(test_areas)
     if regenerate_dim_svd:
         singular_values = {}
-        regen_dim_svd(test_areas)
+        regen_dim_svd(test_areas, data_path, prop_type)
 
     with open(f"{data_path}/dimenstion_svd_{prop_type}.pkl", "rb") as file:
         singular_values = pickle.load(file)

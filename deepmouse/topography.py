@@ -2,14 +2,10 @@ import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-# from deepmouse.maps.util import get_voxel_model_cache, get_default_structure_tree
-# from deepmouse.maps.flatmap import FlatMap
-# from deepmouse.geodesic_flatmap import GeodesicFlatmap
-# from deepmouse.maps.map import right_target_indices, get_positions
-from maps.util import get_voxel_model_cache, get_default_structure_tree
-from maps.flatmap import FlatMap
-from geodesic_flatmap import GeodesicFlatmap
-from maps.map import right_target_indices, get_positions
+from deepmouse.maps.util import get_voxel_model_cache, get_default_structure_tree
+from deepmouse.maps.flatmap import FlatMap
+from deepmouse.geodesic_flatmap import GeodesicFlatmap
+from deepmouse.maps.map import right_target_indices, get_positions
 from tqdm import tqdm
 
 """
@@ -55,7 +51,8 @@ class Gaussian2D:
         self.covariance = np.array(covariance)
 
     def to_vector(self):
-        np.concatenate(self.weight, self.mean.flatten(), self.covariance.flatten())
+        np.concatenate(self.weight, self.mean.flatten(),
+                       self.covariance.flatten())
 
     def __str__(self):
         return "weight: {} mean: {} covariance: {}".format(
@@ -115,18 +112,18 @@ def get_primary_gaussians(area):
 
 
 def load_weights(data_folder='data_files'):
-    weight_file = os.path.join(data_folder,"voxel-weights.pkl")
-    node_file = os.path.join(data_folder,"voxel-nodes.pkl")
-    if os.path.isfile(weight_file) and os.path.isfile(node_file):
-        with open(weight_file, 'rb') as file:
-            weights = pickle.load(file)
-        with open(node_file, 'rb') as file:
-            nodes = pickle.load(file)
-    else:
-        raise Exception('Weight files missing')
+    # weight_file = os.path.join(data_folder,"voxel-weights.pkl")
+    # node_file = os.path.join(data_folder,"voxel-nodes.pkl")
+    # if os.path.isfile(weight_file) and os.path.isfile(node_file):
+    #     with open(weight_file, 'rb') as file:
+    #         weights = pickle.load(file)
+    #     with open(node_file, 'rb') as file:
+    #         nodes = pickle.load(file)
+    # else:
+    #     raise Exception('Weight files missing')
 
-    # weights = cache.get_weights()
-    # nodes = cache.get_nodes()
+    weights = cache.get_weights()
+    nodes = cache.get_nodes()
 
     print(weights.shape)  # source to latent (226346, 428)
     print(nodes.shape)  # latent to target (both hemispheres) (428, 448962)
@@ -138,11 +135,14 @@ def remove_experiment(weights, nodes, index):
     num_experiments = weights.shape[1]
     if index >= num_experiments:
         raise Exception(
-            "Index {} given but only {} experiments".format(index, num_experiments)
+            "Index {} given but only {} experiments".format(
+                index, num_experiments)
         )
 
-    new_weights = np.concatenate((weights[:, :index], weights[:, index + 1 :]), axis=1)
-    new_nodes = np.concatenate((nodes[:index, :], nodes[index + 1 :, :]), axis=0)
+    new_weights = np.concatenate(
+        (weights[:, :index], weights[:, index + 1:]), axis=1)
+    new_nodes = np.concatenate(
+        (nodes[:index, :], nodes[index + 1:, :]), axis=0)
 
     # print(np.sum(weights, 1))
     # print(np.min(np.sum(weights, 1)))
@@ -168,6 +168,7 @@ def propagate_gaussians_through_isocortex(
     :return: Gaussian models of input to every target voxel in right isocortex
     """
     print('Loading weights and nodes')
+    # weights: (226346, 428), nodes:  (428, 448962)
     weights, nodes = load_weights(data_folder)
     cortex_id = structure_tree.get_id_acronym_map()["Isocortex"]
 
@@ -199,8 +200,9 @@ def propagate_gaussians_through_isocortex(
     r = right_target_indices(cache)
     right_target_cortex_indices = target_cortex_indices[r]
 
-    cortex_weights = weights[source_cortex_indices, :]
-    cortex_positions = get_positions(cache, "Isocortex")  # these are in source order
+    cortex_weights = weights[source_cortex_indices, :]  # (427, 61878)
+    cortex_positions = get_positions(
+        cache, "Isocortex")  # these are in source order
 
     def get_source_index(position_3d):
         ind = np.where((cortex_positions == position_3d).all(axis=1))[0]
@@ -227,14 +229,15 @@ def propagate_gaussians_through_isocortex(
         # print("***************")
 
     def get_mixture_for_target_voxel(target_index):
-        target_weights = np.dot(nodes[:, target_index].T, cortex_weights.T)
-        breakpoint()
+        target_weights = np.dot(
+            nodes[:, target_index].T, cortex_weights.T)  # (61878, )
         inclusion_threshold = 0.01 * np.max(target_weights)
         mixture = GaussianMixture2D()
         for g, p, ind in zip(gaussians, positions_3d, indices):
             weight = target_weights[ind]
             if weight > inclusion_threshold:
-                mixture.add(Gaussian2D(weight * g.weight, g.mean, g.covariance))
+                mixture.add(Gaussian2D(
+                    weight * g.weight, g.mean, g.covariance))
 
         # print('{} of {} th: {}'.format(len(mixture.gaussians), len(gaussians), inclusion_threshold))
         return mixture
@@ -243,14 +246,15 @@ def propagate_gaussians_through_isocortex(
     for i, target_index in tqdm(enumerate(right_target_cortex_indices)):
         # if i % 100 == 0:
         #     print('{} of {}'.format(i, len(right_target_cortex_indices)))
-
         mixture = get_mixture_for_target_voxel(target_index)
 
         result.append(mixture.approx())
 
-    target_positions = get_positions(cache,"root",True)[right_target_cortex_indices]
+    target_positions = get_positions(cache, "root", True)[
+        right_target_cortex_indices]
 
     return result, target_positions
+
 
 def plot_flatmap(propagated, mediolateral=True):
     flatmap = GeodesicFlatmap()
@@ -270,7 +274,8 @@ def plot_flatmap(propagated, mediolateral=True):
         blue = 1 - red
         brightness = (gaussian.weight / max_weight) ** (1 / 4)
         flatmap.set_voxel_colour(
-            flatmap.voxel_positions[i], [brightness * red, 0, brightness * blue]
+            flatmap.voxel_positions[i], [
+                brightness * red, 0, brightness * blue]
         )
 
     flatmap.show_map(image_file="generated/bar.png")
@@ -311,7 +316,8 @@ if __name__ == "__main__":
             )
             os.makedirs("generated", exist_ok=True)
             with open(
-                "generated/propagated {} omit {}".format(area, omit_experiment_rank),
+                "generated/propagated {} omit {}".format(
+                    area, omit_experiment_rank),
                 "wb",
             ) as file:
                 pickle.dump(propagated, file)

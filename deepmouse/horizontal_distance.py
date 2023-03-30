@@ -2,6 +2,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from mcmodels.core import VoxelModelCache
+
 # from deepmouse.maps.util import get_default_structure_tree
 # from deepmouse.maps.map import get_positions
 # from deepmouse.streamlines import get_streamline, CompositeInterpolator
@@ -9,10 +10,13 @@ from maps.util import get_default_structure_tree
 from maps.map import get_positions
 from streamlines import get_streamline, CompositeInterpolator
 
+
 def line_segment_distances(points, a, b):
     # https://stackoverflow.com/questions/54442057/calculate-the-euclidian-distance-between-an-array-of-points-to-a-line-segment-in/54442561#54442561
     points = np.atleast_2d(points)
-    d = np.divide(b - a, np.linalg.norm(b - a))
+
+    divide = np.linalg.norm(b - a) if np.linalg.norm(b - a) > 0 else 1
+    d = np.divide(b - a, divide)
     s = np.dot(a - points, d)
     t = np.dot(points - b, d)
     h = np.maximum.reduce([s, t, np.zeros(len(points))])
@@ -39,6 +43,7 @@ def shortest_distance(positions, streamline):
 
     return result
 
+
 # import time
 # start = time.time()
 # shortest = shortest_distance(positions_all, s_both)
@@ -54,6 +59,7 @@ def laterally_close(position, cutoff=4):
     close_distances = shortest[close_indices]
     return close_indices, close_distances
 
+
 # cache = VoxelModelCache(manifest_file='connectivity/voxel_model_manifest.json')
 # structure_tree = get_default_structure_tree()
 
@@ -66,11 +72,13 @@ def surface_to_surface_streamline(ci, position):
     down = get_streamline(ci, position, to_surface=False)
     return np.concatenate((np.flip(down, axis=0), up[1:, :]))
 
+
 def main():
     position = [69, 10, 61]
     s = get_streamline(ci, position)
     s_down = get_streamline(ci, position, to_surface=False)
     s_both = surface_to_surface_streamline(ci, position)
+
 
 # fig = plt.figure()
 # ax = fig.add_subplot(projection="3d")
