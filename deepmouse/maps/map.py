@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.spatial import ConvexHull
 from mcmodels.core import VoxelModelCache
-# from deepmouse.maps.flatmap import FlatMap
-from maps.flatmap import FlatMap
+from deepmouse.maps.flatmap import FlatMap
+# from maps.flatmap import FlatMap
 
 
 class Border:
