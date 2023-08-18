@@ -4,7 +4,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import least_squares
 from mcmodels.core import VoxelModelCache
 from deepmouse.maps.util import get_id, get_default_structure_tree
+from deepmouse.hull import concave_hull
+from shapely.geometry import Point, Polygon
 
+# TODO: manually check accuracy on many areas; consider penalty for centre axis of flatmap too far from physical centre
 
 def get_angles(offset):
     """
@@ -18,7 +21,7 @@ def get_angles(offset):
 
 
 class FlatMap:
-    _instance = {'visual': None, 'barrel': None}
+    _instance = {}
 
     def __init__(self, area='visual'):
         """
@@ -95,7 +98,7 @@ class FlatMap:
         :param position_3d: 3D voxel position (voxels)
         :return: 2D voxel position (mm along surface)
         """
-        offset = position_3d.angle - self.centre
+        offset = position_3d.T - self.centre
         offset[:2] = -offset[:2] #forward, up, right
         offset = np.matmul(self.R_vertical, offset)
 
@@ -105,7 +108,69 @@ class FlatMap:
 
         return [millimeters[0], -millimeters[1]]
 
-    def _plot_voxels(self):
+    def get_position_3d(self, position_2d):
+        """
+        :param position_2d: 2D flatmap position
+        :return: corresponding position in 3D space near middle of cortical thickness
+        """
+        millimeters = [position_2d[0], -position_2d[1]]
+        angles = np.array(millimeters) / self.voxel_size / self.radius
+        angles[1] = angles[1] + np.pi/2
+
+        # forward, up, right
+        right_offset = self.radius * np.sin(angles[0]) # correct? think so
+        forward_offset = self.radius * np.cos(angles[1])
+        up_offset = self.radius * np.sin(angles[1])
+        offset = [forward_offset, up_offset, right_offset]
+
+        offset = np.matmul(np.linalg.inv(self.R_vertical), offset)
+        offset[:2] = -offset[:2] # back, down, left
+        position_3d = offset.T + self.centre
+        return position_3d
+
+        # return np.array([
+        #     np.arctan(offset[2] / np.linalg.norm(offset[:2])), # angle right from centre
+        #     np.arctan2(offset[1], offset[0]) # angle forward from vertical, only pi/2 subtracted later
+        # ])
+
+    def get_column_centres(self, spacing=0.1):
+        centre = np.mean(self.positions_2d, axis=1)
+        left = np.min(self.positions_2d[0,:])
+        right = np.max(self.positions_2d[0,:])
+        back = np.min(self.positions_2d[1,:])
+        front = np.max(self.positions_2d[1,:])
+
+        ml_spacing = spacing
+        ap_spacing = spacing * np.sin(np.pi/3)
+        left = centre[0] - np.floor(centre[0] - left / ml_spacing) * ml_spacing
+        back = centre[1] - np.floor(centre[1] - back / ap_spacing) * ap_spacing
+        ml_positions = np.arange(left, right, ml_spacing)
+        ap_positions = np.arange(back, front, ap_spacing)
+
+        column_centres = []
+        chull = concave_hull(self.positions_2d.T)
+        boundary = Polygon(self.positions_2d[:, chull].T)
+
+        def append_centre(column_centre):
+            if boundary.contains(Point(column_centre[0], column_centre[1])):
+                column_centres.append(column_centre)
+
+        centred = int(np.round(centre[1] - back / ap_spacing)) % 2 == 0 # columns in back row should be centered? (otherwise offset)
+        for ap in ap_positions:
+            if centred:
+                ml_offset = 0
+            else:
+                ml_offset = spacing / 2
+                append_centre([ml_positions[0] - ml_offset, ap])
+
+            for ml in ml_positions:
+                append_centre([ml + ml_offset, ap])
+
+            centred = not centred
+
+        return np.array(column_centres).T
+
+    def _plot_voxels(self, show=True):
         # takes about 30s
         voxels = self.source_key_volume > 0
         fig = plt.figure()
@@ -117,22 +182,42 @@ class FlatMap:
         ax.set_xlim((min(self.positions_3d[0,:]), max(self.positions_3d[0,:])))
         ax.set_ylim((min(self.positions_3d[1,:]), max(self.positions_3d[1,:])))
         ax.set_zlim((min(self.positions_3d[2,:]), max(self.positions_3d[2,:])))
-        plt.show()
+        if show:
+            plt.show()
 
     @staticmethod
     def get_instance(area='visual'):
         """
         :return: Shared instance of FlatMap
         """
-        if FlatMap._instance[area] is None:
+        if not area in FlatMap._instance.keys():
             FlatMap._instance[area] = FlatMap(area=area)
             FlatMap._instance[area]._fit()
         return FlatMap._instance[area]
 
 
 if __name__ == '__main__':
-    flatmap = FlatMap.get_instance(area='visual')
-    flatmap._plot_voxels()
+    # flatmap = FlatMap(area='AUDp')
+    # flatmap._fit()
+
+    flatmap = FlatMap.get_instance(area='VISp')
+    column_centres = flatmap.get_column_centres()
+    plt.figure()
+    plt.scatter(flatmap.positions_2d[0,:], flatmap.positions_2d[1,:], marker='.', color='k')
+    plt.scatter(column_centres[0,:], column_centres[1,:], color='r')
+    plt.savefig('VISp_columns.png')
+    plt.show()
+
+    flatmap = FlatMap.get_instance(area='AUDp')
+    flatmap._plot_voxels(show=False)
     centre, radius = flatmap._fit()
     print('centre: {} radius: {}'.format(centre, radius))
-    flatmap._plot_residuals()
+    point = flatmap.positions_3d[:,700]
+    ax = plt.gcf().gca(projection='3d')
+    ax.scatter(point[0], point[1], point[2])
+    point_2d = flatmap.get_position_2d(point)
+    point_3d = flatmap.get_position_3d(point_2d)
+    ax.scatter(point_3d[0], point_3d[1], point_3d[2], color='r')
+    plt.show()
+    # flatmap._plot_residuals()
+

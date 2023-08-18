@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.spatial import ConvexHull
 from mcmodels.core import VoxelModelCache
-# from deepmouse.maps.flatmap import FlatMap
-from maps.flatmap import FlatMap
+from deepmouse.maps.flatmap import FlatMap
+# from maps.flatmap import FlatMap
 
 
 class Border:
@@ -85,12 +85,12 @@ def get_positions(cache, area, target=False):
     return positions
 
 
-def right_target_indices(cache):
+def right_target_indices(cache, area='Isocortex'):
     """
     :return: Indices of target voxels that correspond to source voxels (right hemisphere)
     """
-    source_positions = get_positions(cache, 'Isocortex', target=False)
-    target_positions = get_positions(cache, 'Isocortex', target=True)
+    source_positions = get_positions(cache, area, target=False)
+    target_positions = get_positions(cache, area, target=True)
 
     min_z = np.min(source_positions[:,2])
     test_positions = []

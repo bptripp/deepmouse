@@ -241,7 +241,7 @@ barrel_border = [
 
 def transform(points, angle, scale, offset):
     R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-    points = np.matmul(R, points.T).T
+    points = np.matmul(R, points.angle).T
     points = scale * points
     return points + offset
 
