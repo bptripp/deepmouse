@@ -144,10 +144,23 @@ def get_positions(cache, id):
     return np.array(positions)
 
 
+# TODO: is this redundant with map.get_positions?
+def get_area_positions(cache, area):
+    structure_tree = get_default_structure_tree()
+    structure_id = get_id(structure_tree, area)
+
+    source_mask = cache.get_source_mask()
+
+    source_keys = source_mask.get_key(structure_ids=[structure_id])
+    source_key_volume = source_mask.map_masked_to_annotation(source_keys)
+    positions_3d = np.array(np.nonzero(source_key_volume))
+    return positions_3d
+
+
 if __name__ == '__main__':
     structure_tree = get_default_structure_tree()
 
-    print(get_id(structure_tree, 'VISp'))
+    # print(get_id(structure_tree, 'VISp'))
     # print(get_id(structure_tree, 'VISp2/3'))
     # print(get_id(structure_tree, 'VISpm4'))
 
@@ -165,16 +178,21 @@ if __name__ == '__main__':
     # for id in [245, 871, 967, 1009, 997]:
     #     print_descriptions(structure_tree, id)
 
-    print_descriptions(structure_tree, 315) #isocortex
+    # print_descriptions(structure_tree, 315) #isocortex
 
-    for id in get_child_ids(structure_tree, 315):
-        print_descriptions(structure_tree, id)
+    # for id in get_child_ids(structure_tree, 315):
+    #     print_descriptions(structure_tree, id)
 
-    cache = get_voxel_model_cache()
-    p = get_positions(cache, 315)
-    print(p.shape)
-    p = get_positions(cache, 385)
-    print(p.shape)
+    chars = '123456'
+    for id in get_descendent_ids(structure_tree, 315):
+        if not any((c in chars) for c in get_name(structure_tree, id)):
+            print_descriptions(structure_tree, id)
+
+    # cache = get_voxel_model_cache()
+    # p = get_positions(cache, 315)
+    # print(p.shape)
+    # p = get_positions(cache, 385)
+    # print(p.shape)
 
     #
     # ids = get_ancestor_ids(structure_tree, 312782558)
